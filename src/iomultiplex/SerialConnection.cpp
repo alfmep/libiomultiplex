@@ -17,7 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/SerialConnection.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/Log.hpp>
 #include <cstring>
 #include <unistd.h>
@@ -30,7 +30,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    SerialConnection::SerialConnection (IOHandler& io_handler)
+    SerialConnection::SerialConnection (iohandler_base& io_handler)
         : FdConnection (io_handler),
           name ("")
     {
@@ -39,7 +39,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    SerialConnection::SerialConnection (IOHandler& io_handler, int file_descriptor)
+    SerialConnection::SerialConnection (iohandler_base& io_handler, int file_descriptor)
         : FdConnection (io_handler, file_descriptor),
           name ("")
     {
@@ -48,7 +48,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    SerialConnection::SerialConnection (IOHandler& io_handler,
+    SerialConnection::SerialConnection (iohandler_base& io_handler,
                                         const std::string& device_filename,
                                         int  baud_rate,
                                         int  data_bits,

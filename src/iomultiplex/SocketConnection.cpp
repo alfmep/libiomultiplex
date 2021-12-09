@@ -17,20 +17,21 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/SocketConnection.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/Log.hpp>
 #include <atomic>
+#include <map>
 #include <cstring>
 #include <cerrno>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
 
 
 //#define TRACE_DEBUG
 
 #ifdef TRACE_DEBUG
-#define TRACE(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#define TRACE(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #define TRACE(format, ...)
 #endif
@@ -176,7 +177,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    SocketConnection::SocketConnection (IOHandler& io_handler)
+    SocketConnection::SocketConnection (iohandler_base& io_handler)
         : FdConnection   (io_handler),
           connected      {false},
           bound          {false},
@@ -244,7 +245,7 @@ namespace iomultiplex {
             fd = socket (domain, type, proto);
             if (fd == -1) {
                 auto errnum = errno;
-                Log::debug ("socket() failed: %s", strerror(errno));
+                TRACE ("socket() failed: %s", strerror(errno));
                 errno = errnum;
                 return -1;
             }
@@ -296,14 +297,14 @@ namespace iomultiplex {
         // Sanity checks
         //
         if (handle() < 0) {
-            Log::debug ("bind() failed: Socket not open");
+            TRACE ("bind() failed: Socket not open");
             errno = EINVAL;
             return -1;
         }
         if (addr.family() != local_addr->family()) {
-            Log::debug ("bind() failed: invalid socket type: %s, expected: %s",
-                        sock_family_to_string(addr.family()).c_str(),
-                        sock_family_to_string(local_addr->family()).c_str());
+            TRACE ("bind() failed: invalid socket type: %s, expected: %s",
+                   sock_family_to_string(addr.family()).c_str(),
+                   sock_family_to_string(local_addr->family()).c_str());
             errno = EINVAL;
             return -1;
         }
@@ -313,7 +314,7 @@ namespace iomultiplex {
         TRACE ("Bind socket %d to address %s", handle(), addr.to_string().c_str());
         if (::bind(handle(), local_addr->data(), local_addr->size())) {
             auto errnum = errno;
-            Log::debug ("bind() failed: %s", strerror(errno));
+            TRACE ("bind() failed: %s", strerror(errno));
             errno = errnum;
             return -1;
         }
@@ -347,12 +348,12 @@ namespace iomultiplex {
         // Sanity checks
         //
         if (handle() < 0) {
-            Log::debug ("connect() failed: Socket not open");
+            TRACE ("connect() failed: Socket not open");
             errno = EINVAL;
             return -1;
         }
         if (addr.family() != local_addr->family()) {
-            Log::debug ("connect() failed: invalid socket type");
+            TRACE ("connect() failed: invalid socket type");
             errno = EINVAL;
             return -1;
         }
@@ -456,7 +457,7 @@ namespace iomultiplex {
     int SocketConnection::listen (int backlog)
     {
         if (handle() < 0) {
-            Log::debug ("listen() failed: Socket not open");
+            TRACE ("listen() failed: Socket not open");
             errno = EINVAL;
             return -1;
         }
@@ -465,7 +466,7 @@ namespace iomultiplex {
         auto result = ::listen (handle(), backlog);
         if (result) {
             auto errnum = errno;
-            Log::debug ("listen() failed: %s", strerror(errnum));
+            TRACE ("listen() failed: %s", strerror(errnum));
             errno = errnum;
         }
         return result;
@@ -477,7 +478,7 @@ namespace iomultiplex {
     int SocketConnection::accept (accept_cb_t callback, unsigned timeout)
     {
         if (handle() < 0) {
-            Log::debug ("accept() failed: Socket not open");
+            TRACE ("accept() failed: Socket not open");
             errno = EINVAL;
             return -1;
         }
@@ -521,10 +522,12 @@ namespace iomultiplex {
                 TRACE ("Socket %d accepted a connection", handle());
             }
         }
+#ifdef TRACE_DEBUG
         if (errnum != 0) {
-            Log::debug ("accept() Socket %d failed to accept a connection: %s",
-                        handle(), strerror(errnum));
+            TRACE ("accept() Socket %d failed to accept a connection: %s",
+                   handle(), strerror(errnum));
         }
+#endif
         cb (*this, client_sock, errnum);
     }
 
@@ -571,7 +574,7 @@ namespace iomultiplex {
                                     unsigned timeout)
     {
         if (handle() < 0) {
-            Log::debug ("recvfrom() failed: Socket not open");
+            TRACE ("recvfrom() failed: Socket not open");
             errno = EINVAL;
             return -1;
         }
@@ -651,12 +654,12 @@ namespace iomultiplex {
                                   unsigned timeout)
     {
         if (handle() < 0) {
-            Log::debug ("sendto() failed: Socket not open");
+            TRACE ("sendto() failed: Socket not open");
             errno = EINVAL;
             return -1;
         }
         if (peer.family() != local_addr->family()) {
-            Log::debug ("sendto() failed: invalid peer socket type");
+            TRACE ("sendto() failed: invalid peer socket type");
             errno = EINVAL;
             return -1;
         }

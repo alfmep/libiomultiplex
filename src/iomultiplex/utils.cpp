@@ -25,7 +25,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    std::pair<FdConnection, FdConnection> make_pipe (IOHandler& ioh, int flags)
+    std::pair<FdConnection, FdConnection> make_pipe (iohandler_base& ioh, int flags)
     {
         int fd[2];
         if (pipe(fd) == 0) {

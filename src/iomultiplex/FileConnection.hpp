@@ -28,7 +28,7 @@
 namespace iomultiplex {
 
     // Forward declaration
-    class IOHandler;
+    class iohandler_base;
 
     /**
      * File I/O connection.
@@ -41,7 +41,7 @@ namespace iomultiplex {
          * Constructor.
          * @param io_handler This object will manage I/O operations.
          */
-        FileConnection (IOHandler& io_handler);
+        FileConnection (iohandler_base& io_handler);
 
         /**
          * Move Constructor.
@@ -55,7 +55,7 @@ namespace iomultiplex {
          * @param filename The name of the file.
          * @param flags These are the same flags as in the <code>open ()</code> system call.
          */
-        FileConnection (IOHandler& io_handler, const std::string& filename, int flags);
+        FileConnection (iohandler_base& io_handler, const std::string& filename, int flags);
 
         /**
          * Constructor.
@@ -65,7 +65,7 @@ namespace iomultiplex {
          * @param flags These are the same flags as in the <code>open ()</code> system call.
          * @param mode These are the same mode bits as in the <code>open ()</code> system call.
          */
-        FileConnection (IOHandler& io_handler, const std::string& filename, int flags, int mode);
+        FileConnection (iohandler_base& io_handler, const std::string& filename, int flags, int mode);
 
         /**
          * Destructor.

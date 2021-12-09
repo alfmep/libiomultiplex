@@ -42,7 +42,7 @@ struct tftp_server_session_t {
     int retry_cnt;
     std::shared_ptr<tftp_server_session_t> self;
 
-    tftp_server_session_t (iomultiplex::IOHandler& ioh,
+    tftp_server_session_t (iomultiplex::iohandler_base& ioh,
                            const iomultiplex::IpAddr& caddr)
         : sock (ioh),
           file (ioh),

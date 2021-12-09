@@ -30,7 +30,7 @@
 namespace iomultiplex {
 
     // Forward declarations
-    class IOHandler;
+    class iohandler_base;
     class SocketConnection;
 
     using SocketConnectionPtr = std::shared_ptr<SocketConnection>;
@@ -68,16 +68,16 @@ namespace iomultiplex {
          * Socket I/O callback.
          * @param ior I/O operation result.
          * @param peer_addr The address of the peer we are receiving from or sendig to.
-         * @return <code>true</code> if the IOHandler should continue to try handling
+         * @return <code>true</code> if the iohandler_base should continue to try handling
          *         I/O operations on this connection before waiting for new events.
          */
         using peer_io_callback_t = std::function<bool (io_result_t& ior, const SockAddr& peer_addr)>;
 
         /**
          * Constructor.
-         * @param io_handler The IOHandler object handling the I/O operations.
+         * @param io_handler The iohandler_base object handling the I/O operations.
          */
-        SocketConnection (IOHandler& io_handler);
+        SocketConnection (iohandler_base& io_handler);
 
         /**
          * Move constructor.
@@ -144,7 +144,7 @@ namespace iomultiplex {
          * Make a synchronized connection to a remote address.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
          */
-        int connect (const SockAddr& addr, unsigned timeout);
+        int connect (const SockAddr& addr, unsigned timeout=-1);
 
         /**
          * Put the socket in listening state.
@@ -165,7 +165,7 @@ namespace iomultiplex {
          * Accept an incoming connection.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
          */
-        std::shared_ptr<SocketConnection> accept (unsigned timeout);
+        std::shared_ptr<SocketConnection> accept (unsigned timeout=-1);
 
         /**
          * Get the local address.
@@ -214,7 +214,7 @@ namespace iomultiplex {
         /**
          * Synchronized wait for a message from the socket
          */
-        std::shared_ptr<SockAddr> recvfrom (void* buf, ssize_t& size, unsigned timeout);
+        std::shared_ptr<SockAddr> recvfrom (void* buf, ssize_t& size, unsigned timeout=-1);
 
         /**
          * Queue a write operation to a specific address.
@@ -233,7 +233,7 @@ namespace iomultiplex {
         /**
          * Synchronized send a message to a peer.
          */
-        ssize_t sendto (const void* buf, size_t size, const SockAddr& peer, unsigned timeout);
+        ssize_t sendto (const void* buf, size_t size, const SockAddr& peer, unsigned timeout=-1);
 
         /**
          * Read an <i>int</i> socket option at level SOL_SOCKET.

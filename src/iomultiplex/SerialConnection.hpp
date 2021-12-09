@@ -31,7 +31,7 @@
 namespace iomultiplex {
 
     // Forward declaration
-    class IOHandler;
+    class iohandler_base;
 
 
     /**
@@ -44,14 +44,14 @@ namespace iomultiplex {
          * Constructor.
          * @param io_handler This object will manage I/O operations for this connection.
          */
-        SerialConnection (IOHandler& io_handler);
+        SerialConnection (iohandler_base& io_handler);
 
         /**
          * Constructor.
          * @param io_handler This object will manage I/O operations for this connection.
          * @param file_descriptor An open file descriptor to a serial device.
          */
-        SerialConnection (IOHandler& io_handler, int file_descriptor);
+        SerialConnection (iohandler_base& io_handler, int file_descriptor);
 
         /**
          * Constructor.
@@ -62,7 +62,7 @@ namespace iomultiplex {
          * @param parity If parity should be used.
          * @param stop_bits Number of stop bits.
          */
-        SerialConnection (IOHandler& io_handler,
+        SerialConnection (iohandler_base& io_handler,
                           const std::string& device_filename,
                           int  baud_rate=115200,
                           int  data_bits=8,
@@ -72,7 +72,7 @@ namespace iomultiplex {
         /**
          * Move Constructor.
          * Don't move SerialConnection objects that has queued read/write
-         * operations since the IOHandler object stores pointers to
+         * operations since the iohandler_base object stores pointers to
          * SerialConnection objects.<br/>
          * All read/write operations that has been queued
          * by the object to be moved will be cancelled.
@@ -88,7 +88,7 @@ namespace iomultiplex {
         /**
          * Move operator.
          * Don't move SerialConnection objects that has queued read/write
-         * operations since the IOHandler object stores pointers to
+         * operations since the iohandler_base object stores pointers to
          * SerialConnection objects.<br/>
          * All read/write operations that has been queued by either
          * this object or the object to be moved will be cancelled.

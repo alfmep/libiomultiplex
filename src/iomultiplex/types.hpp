@@ -33,7 +33,7 @@ namespace iomultiplex {
     /**
      * I/O callback.
      * @param ior I/O operation result.
-     * @return <code>true</code> if the IOHandler should continue to try handling
+     * @return <code>true</code> if the I/O handler should continue to try handling
      *         I/O operations on this connection before waiting for new events.
      */
     using io_callback_t = std::function<bool (io_result_t& ior)>;

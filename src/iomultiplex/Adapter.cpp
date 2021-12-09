@@ -17,11 +17,21 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/Adapter.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <stdexcept>
 
 
 namespace iomultiplex {
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    Adapter::Adapter ()
+        : slave {nullptr},
+          slave_ptr {nullptr},
+          close_slave_on_destruct {false}
+    {
+    }
 
 
     //--------------------------------------------------------------------------
@@ -46,6 +56,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    /*
     Adapter::Adapter (Adapter&& adapter)
     {
         slave = adapter.slave;
@@ -54,6 +65,7 @@ namespace iomultiplex {
         adapter.slave = nullptr;
         adapter.close_slave_on_destruct = false;
     }
+    */
 
 
     //--------------------------------------------------------------------------
@@ -67,6 +79,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    /*
     Adapter& Adapter::operator= (Adapter&& rhs)
     {
         if (this != &rhs) {
@@ -78,6 +91,7 @@ namespace iomultiplex {
         }
         return *this;
     }
+    */
 
 
     //--------------------------------------------------------------------------
@@ -98,7 +112,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IOHandler& Adapter::io_handler ()
+    iohandler_base& Adapter::io_handler ()
     {
         if (slave)
             return slave->io_handler ();
@@ -109,10 +123,10 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void Adapter::cancel ()
+    void Adapter::cancel (bool cancel_rx, bool cancel_tx)
     {
         if (slave)
-            slave->cancel ();
+            slave->cancel (cancel_rx, cancel_tx);
     }
 
 
@@ -133,6 +147,30 @@ namespace iomultiplex {
             return *slave;
         else
             throw std::runtime_error ("Missing slave connection in Adapter");
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void Adapter::connection (Connection& conn, bool close_on_destruct)
+    {
+        if (close_slave_on_destruct && slave)
+            slave->close ();
+        slave = &conn;
+        close_slave_on_destruct = close_on_destruct;
+        slave_ptr.reset ();
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void Adapter::connection (std::shared_ptr<Connection> conn_ptr)
+    {
+        if (close_slave_on_destruct && slave)
+            slave->close ();
+        slave_ptr = conn_ptr;
+        close_slave_on_destruct = false;
+        slave = slave_ptr.get ();
     }
 
 

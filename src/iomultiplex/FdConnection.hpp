@@ -43,7 +43,7 @@ namespace iomultiplex {
          * Constructor.
          * @param io_handler This object will manage I/O operations for this connection.
          */
-        FdConnection (IOHandler& io_handler);
+        FdConnection (iohandler_base& io_handler);
 
         /**
          * Constructor.
@@ -53,7 +53,7 @@ namespace iomultiplex {
          *        \note The file descriptor should be opened in non blocking mode.
          * @param keep_open If <code>true</code>, don't close the file descriptor in the destructor.
          */
-        FdConnection (IOHandler& io_handler, int file_descriptor, bool keep_open=false);
+        FdConnection (iohandler_base& io_handler, int file_descriptor, bool keep_open=false);
 
         /**
          * Move Constructor.
@@ -88,15 +88,15 @@ namespace iomultiplex {
         virtual bool is_open () const;
 
         /**
-         * Return the IOHandler object that this connection uses.
-         * @return The IOHandler object that manages the I/O operations for this connection.
+         * Return the iohandler_base object that this connection uses.
+         * @return The iohandler_base object that manages the I/O operations for this connection.
          */
-        virtual IOHandler& io_handler ();
+        virtual iohandler_base& io_handler ();
 
         /**
-         * Cancel all I/O operations for this connection.
+         * Cancel I/O operations for this connection.
          */
-        virtual void cancel ();
+        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 
         /**
          * Cancel all pending I/O operations and close the file descriptor.
@@ -106,7 +106,7 @@ namespace iomultiplex {
         /**
          * Do the actual reading from the file descriptor.
          * This method should normally not be called directly,
-         * it is called by the IOHandler when the file descriptor is
+         * it is called by the iohandler_base when the file descriptor is
          * ready to read data.
          * @param buf A pointer to the memory area where data should be stored.
          * @param size The number of bytes to read.
@@ -124,7 +124,7 @@ namespace iomultiplex {
         /**
          * Do the actual writing to the file descriptor.
          * This method should normally not be called directly,
-         * it is called by the IOHandler when the file descriptor is
+         * it is called by the iohandler_base when the file descriptor is
          * ready to write data.
          * @param buf A pointer to the memory area that should be written.
          * @param size The number of bytes to write.
@@ -149,7 +149,7 @@ namespace iomultiplex {
         FdConnection (const FdConnection& fc) = delete;
         FdConnection& operator= (const FdConnection& fc) = delete;
 
-        IOHandler* ioh;
+        iohandler_base* ioh;
         bool keep_open;
     };
 

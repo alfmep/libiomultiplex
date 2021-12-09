@@ -35,7 +35,9 @@ namespace iomultiplex {
 #include <iomultiplex/Resolver.hpp>
 #include <iomultiplex/io_result_t.hpp>
 #include <iomultiplex/PollDescriptors.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
+#include <iomultiplex/IOHandler_Poll.hpp>
+#include <iomultiplex/IOHandler_Epoll.hpp>
 #include <iomultiplex/Connection.hpp>
 #include <iomultiplex/FdConnection.hpp>
 #include <iomultiplex/FileConnection.hpp>

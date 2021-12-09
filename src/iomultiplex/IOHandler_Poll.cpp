@@ -16,7 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/IOHandler_Poll.hpp>
+#include <iomultiplex/io_result_t.hpp>
 #include <iomultiplex/Log.hpp>
 
 #include <vector>
@@ -42,21 +43,30 @@
 #  include <iomanip>
 #endif
 #ifdef TRACE_DEBUG_MISC
-#  define TRACE(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#  define TRACE(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #  define TRACE(format, ...)
 #endif
 #ifdef TRACE_DEBUG_SIG
-#  define TRACE_SIG(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#  define TRACE_SIG(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #  define TRACE_SIG(format, ...)
 #endif
 #ifdef TRACE_DEBUG_POLL
-#  define TRACE_POLL(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#  define TRACE_POLL(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #  define TRACE_POLL(format, ...)
 #endif
 
+
+#ifdef RX_LIST
+#  undef RX_LIST
+#endif
+#  ifdef TX_LIST
+#undef TX_LIST
+#endif
+#define RX_LIST second.first
+#define TX_LIST second.second
 
 
 namespace iomultiplex {
@@ -167,9 +177,9 @@ namespace iomultiplex {
 
 
     //--------------------------------------------------------------------------
-    // Class IOHandler::ioop_t
+    // Class IOHandler_Poll::ioop_t
     //--------------------------------------------------------------------------
-    class IOHandler::ioop_t : public io_result_t {
+    class IOHandler_Poll::ioop_t : public io_result_t {
     public:
         ioop_t (timeout_map_t& tm, bool read,
                 Connection& c, void* b, size_t s, off_t o,
@@ -184,7 +194,7 @@ namespace iomultiplex {
         timeout_map_t& timeout_map;
         timeout_map_t::iterator timeout_map_pos; // Position in timeout_map
 
-        // Make it easy to erase an ioop_t object from the IOHandler's containers
+        // Make it easy to erase an ioop_t object from the IOHandler_Poll's containers
         bool is_rx;
         ioop_list_t::iterator ioop_list_pos; // Position in ioop list (tx or rx)
         fd_ops_map_t::iterator ops_map_pos;  // Position in file_desc->ioop_lists map
@@ -205,7 +215,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IOHandler::IOHandler (int signal_num)
+    IOHandler_Poll::IOHandler_Poll (int signal_num)
         : cmd_signal {signal_num},
           quit {true},
           my_pid {0},
@@ -220,7 +230,7 @@ namespace iomultiplex {
         sigaddset (&cmd_sigset, cmd_signal);
         if (sigprocmask(SIG_BLOCK, &cmd_sigset, &orig_sigmask) < 0) {
             int errnum = errno;
-            Log::debug ("IOHandler: Unable to set signal mask: %s", strerror(errno));
+            TRACE ("IOHandler_Poll: Unable to set signal mask: %s", strerror(errno));
             throw std::system_error (errnum, std::generic_category(),
                                      "Unable to set signal mask");
         }
@@ -236,7 +246,7 @@ namespace iomultiplex {
 
         if (sigaction(cmd_signal, &sa, &orig_sa) < 0) {
             int errnum = errno;
-            Log::debug ("IOHandler: Unable to install signal handler: %s", strerror(errno));
+            TRACE ("IOHandler_Poll: Unable to install signal handler: %s", strerror(errno));
             sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
             throw std::system_error (errnum, std::generic_category(),
                                      "Unable to install signal handler");
@@ -246,7 +256,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IOHandler::~IOHandler ()
+    IOHandler_Poll::~IOHandler_Poll ()
     {
         stop ();
         join ();
@@ -267,7 +277,7 @@ namespace iomultiplex {
     //   0  - starting in same thread
     //   1  - starting in new thread
     //--------------------------------------------------------------------------
-    int IOHandler::start_running (bool start_worker_thread)
+    int IOHandler_Poll::start_running (bool start_worker_thread)
     {
         if (state != state_t::stopped) {
             // Can't start an I/O handler that isn't stopped
@@ -301,7 +311,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    int IOHandler::run (bool start_worker_thread)
+    int IOHandler_Poll::run (bool start_worker_thread)
     {
         std::lock_guard<std::mutex> lock (ops_mutex);
         int progress = start_running (start_worker_thread);
@@ -343,7 +353,7 @@ namespace iomultiplex {
                 if (errno != EINTR) {
                     errnum = errno;
                     quit = true;
-                    Log::debug ("IOHandler: error polling I/O: %s", strerror(errnum));
+                    TRACE_POLL ("IOHandler_Poll: error polling I/O: %s", strerror(errnum));
                 }
             }else{
                 if (result > 0)
@@ -367,13 +377,13 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // Assume ops_mutex is locked !!!
     //--------------------------------------------------------------------------
-    void IOHandler::end_running ()
+    void IOHandler_Poll::end_running ()
     {
         poll_set.clear ();
         timeout_map.clear ();
 
         for (auto& entry : ops_map) {
-            for (auto& ioop : entry.second.first) {
+            for (auto& ioop : entry.RX_LIST) {
                 // Cancel RX operations
                 if (ioop->cb) {
                     ioop->result = -1;
@@ -383,9 +393,9 @@ namespace iomultiplex {
                     ops_mutex.lock ();
                 }
             }
-            entry.second.first.clear ();
+            entry.RX_LIST.clear ();
 
-            for (auto& ioop : entry.second.second) {
+            for (auto& ioop : entry.TX_LIST) {
                 // Cancel TX operations
                 if (ioop->cb) {
                     ioop->result = -1;
@@ -395,7 +405,7 @@ namespace iomultiplex {
                     ops_mutex.lock ();
                 }
             }
-            entry.second.second.clear ();
+            entry.TX_LIST.clear ();
         }
         ops_map.clear ();
     }
@@ -403,21 +413,21 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler::signal_event ()
+    void IOHandler_Poll::signal_event ()
     {
         if (my_pid!=0 && my_pid != (pid_t)syscall(SYS_gettid)) {
             TRACE_SIG ("Send signal %d to thread id %u", cmd_signal, (unsigned)my_pid);
             pid_t tgid = getpid ();
             int err = syscall (SYS_tgkill, tgid, my_pid, cmd_signal);
             if (err)
-                Log::debug ("IOHandler: Unable to raise command signal: %s", strerror(err));
+                Log::info ("IOHandler_Poll: Unable to raise command signal: %s", strerror(err));
         }
     }
 
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler::stop ()
+    void IOHandler_Poll::stop ()
     {
         if (!quit.exchange(true)) {
             TRACE ("Quitting I/O handling");
@@ -428,7 +438,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    bool IOHandler::same_context () const
+    bool IOHandler_Poll::same_context () const
     {
         return !my_pid  ||  my_pid == (pid_t)syscall(SYS_gettid);
     }
@@ -436,7 +446,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler::join ()
+    void IOHandler_Poll::join ()
     {
         if (worker.joinable())
             worker.join ();
@@ -445,7 +455,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    int IOHandler::queue_io_op (Connection& conn,
+    int IOHandler_Poll::queue_io_op (Connection& conn,
                                 void* buf,
                                 size_t size,
                                 off_t offset,
@@ -466,7 +476,7 @@ namespace iomultiplex {
             return -1;
         }
 
-        TRACE ("Queue a %s operation on file desc %d, %u bytest requested",
+        TRACE ("Queue a %s operation on file desc %d, %u bytes requested",
                (read?"Rx":"Tx"), fd, size);
 
         std::shared_ptr<ioop_t> ioop (std::make_shared<ioop_t>(
@@ -479,7 +489,7 @@ namespace iomultiplex {
             entry = ops_map.emplace (fd, std::make_pair(ioop_list_t(),         // Rx list
                                                         ioop_list_t())).first; // Tx list
 
-        auto& op_list {read ? entry->second.first : entry->second.second};
+        auto& op_list {read ? entry->RX_LIST : entry->TX_LIST};
         if (op_list.empty()) {
             poll_set.schedule_activate (fd, (read ? POLLIN : POLLOUT), true);
             send_signal = true;
@@ -501,11 +511,12 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler::cancel_impl (int fd, bool rx, bool tx)
+    void IOHandler_Poll::cancel (Connection& conn, bool rx, bool tx)
     {
         if (!rx && !tx)
             return;
 
+        auto fd = conn.handle ();
         if (fd < 0)
             return; // Invalid file handle
 
@@ -523,8 +534,8 @@ namespace iomultiplex {
         if (entry == ops_map.end())
             return; // No I/O operations found
 
-        auto& rx_op_list {entry->second.first};
-        auto& tx_op_list {entry->second.second};
+        auto& rx_op_list {entry->RX_LIST};
+        auto& tx_op_list {entry->TX_LIST};
 
         bool send_signal {false};
 
@@ -557,7 +568,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // ops_mutex is locked!
     //--------------------------------------------------------------------------
-    void IOHandler::io_dispatch ()
+    void IOHandler_Poll::io_dispatch ()
     {
         TRACE ("Handle I/O");
         auto* desc = poll_set.data ();
@@ -607,7 +618,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // ops_mutex is locked!
     //--------------------------------------------------------------------------
-    void IOHandler::handle_event (int fd, bool read, short error_flags)
+    void IOHandler_Poll::handle_event (int fd, bool read, short error_flags)
     {
         TRACE ("Handle %s in file descriptor %d", (read?"input":"output"), fd);
 
@@ -615,7 +626,7 @@ namespace iomultiplex {
         if (entry == ops_map.end())
             return;
 
-        auto* ioop_list = read ? &(entry->second.first) : &(entry->second.second);
+        auto* ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
         bool done {false};
         TRACE ("File descriptor %d have %d %s operation(s)", fd, ioop_list->size(), (read?"input":"output"));
         while (!quit && !done && !ioop_list->empty()) {
@@ -662,7 +673,7 @@ namespace iomultiplex {
                     // fd map entry is invalid
                     entry = ops_map.find (fd);
                     if (entry != ops_map.end()) {
-                        ioop_list = read ? &(entry->second.first) : &(entry->second.second);
+                        ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
                     }else{
                         ioop_list = nullptr;
                         done = true;
@@ -677,7 +688,7 @@ namespace iomultiplex {
             poll_set.schedule_deactivate (fd, (read ? POLLIN : POLLOUT));
 
         if (entry != ops_map.end())
-            if (entry->second.first.empty() && entry->second.second.empty())
+            if (entry->RX_LIST.empty() && entry->TX_LIST.empty())
                 ops_map.erase (entry);
     }
 
@@ -685,7 +696,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // ops_mutex is locked!
     //--------------------------------------------------------------------------
-    bool IOHandler::next_timeout (struct timespec& timeout)
+    bool IOHandler_Poll::next_timeout (struct timespec& timeout)
     {
         if (timeout_map.empty())
             return false;
@@ -709,7 +720,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // ops_mutex is locked!
     //--------------------------------------------------------------------------
-    void IOHandler::handle_timeout (struct timespec& now)
+    void IOHandler_Poll::handle_timeout (struct timespec& now)
     {
         timespec_less_t less;
 
@@ -737,7 +748,7 @@ namespace iomultiplex {
             bool is_rx = ioop.is_rx;
             fd_ops_map_t::iterator ops_map_pos = ioop.ops_map_pos;
             ioop_list_t::iterator op_list_pos = ioop.ioop_list_pos;
-            ioop_list_t& op_list = is_rx ? ops_map_pos->second.first : ops_map_pos->second.first;
+            ioop_list_t& op_list = is_rx ? ops_map_pos->RX_LIST : ops_map_pos->TX_LIST;
             int fd = ops_map_pos->first;
 
 #ifdef TRACE_DEBUG_MISC
@@ -750,7 +761,7 @@ namespace iomultiplex {
             if (op_list.empty())
                 poll_set.schedule_deactivate (fd, (is_rx ? POLLIN : POLLOUT));
 
-            if (ops_map_pos->second.first.empty() && ops_map_pos->second.second.empty())
+            if (ops_map_pos->RX_LIST.empty() && ops_map_pos->TX_LIST.empty())
                 ops_map.erase (ops_map_pos);
 
             if (callback) {
@@ -769,7 +780,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IOHandler::ioop_t::ioop_t (timeout_map_t& tm,
+    IOHandler_Poll::ioop_t::ioop_t (timeout_map_t& tm,
                                bool read,
                                Connection& c,
                                void* b,
@@ -807,7 +818,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IOHandler::ioop_t::~ioop_t ()
+    IOHandler_Poll::ioop_t::~ioop_t ()
     {
         if (timeout_map_pos != timeout_map.end())
             timeout_map.erase (timeout_map_pos);

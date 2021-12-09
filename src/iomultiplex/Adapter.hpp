@@ -42,6 +42,12 @@ namespace iomultiplex {
     class Adapter : public Connection {
     public:
         /**
+         * Default constructor.
+         * Constructs an adapter without a slave connection.
+         */
+        Adapter ();
+
+        /**
          * Constructor.
          * @param conn The slave connection used by this adapter.
          * @param close_on_destruct If <code>true</code>, the
@@ -60,11 +66,6 @@ namespace iomultiplex {
          *                 isn't closed by the adapter in the destructor,
          *                 it will be closed by the slave connection itself
          *                 when the shared pointer calls its destructor.
-         *                 <br/>
-         *                 <b>Note:</b> If the parameter is a
-         *                 <code>nullptr</code>, this instance will not
-         *                 have a slave connection and will be pretty
-         *                 much useless.
          */
         Adapter (std::shared_ptr<Connection> conn_ptr);
 
@@ -72,7 +73,7 @@ namespace iomultiplex {
          * Move constructor.
          * @param adapter The adapter object to move to this instance.
          */
-        Adapter (Adapter&& adapter);
+        //Adapter (Adapter&& adapter);
 
         /**
          * Destructor.
@@ -89,8 +90,7 @@ namespace iomultiplex {
          * Move operator.
          * @param adapter The adapter object to move to this instance.
          */
-        Adapter& operator= (Adapter&& adapter);
-
+        //Adapter& operator= (Adapter&& adapter);
 
         /**
          * Get the file descriptor associated with the slave connection.
@@ -108,20 +108,20 @@ namespace iomultiplex {
         virtual bool is_open () const;
 
         /**
-         * Return the IOHandler object that this connection uses.
-         * @return The IOHandler object that manages the I/O operations
+         * Return the iohandler_base object that this connection uses.
+         * @return The iohandler_base object that manages the I/O operations
          *         for this connection.
          * @exception std::runtime_error If a slave connection doesn't
          *                               exist. This can happen if a
          *                               <code>nullptr</code> was passed
          *                               as a parameter in the constructor.
          */
-        virtual IOHandler& io_handler ();
+        virtual iohandler_base& io_handler ();
 
         /**
-         * Cancel all I/O operations for this connection.
+         * Cancel I/O operations for this connection.
          */
-        virtual void cancel ();
+        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 
         /**
          * Close the connection.
@@ -138,6 +138,34 @@ namespace iomultiplex {
          *                               as a parameter in the constructor.
          */
         Connection& connection ();
+
+        /**
+         * Set/replace the slave connection used by this adapter.
+         * If <code>close_on_destruct</code> was set in the destructor or
+         * in an earlier call to this method, the current slave connection
+         * will be closed.
+         * @param conn The slave connection to be used by this adapter.
+         * @param close_on_destruct If <code>true</code>, the
+         *                          slave connection used by this adapter
+         *                          will be closed in the descructor of
+         *                          this object. if <code>false</code>,
+         *                          the slave connection will be kept
+         *                          open.
+         */
+        void connection (Connection& conn, bool close_on_destruct=false);
+
+        /**
+         * Set/replace the slave connection used by this adapter.
+         * If <code>close_on_destruct</code> was set in the destructor or
+         * in an earlier call to this method, the current slave connection
+         * will be closed.
+         * @param conn_ptr A shared ponter to the slave connection
+         *                 used by this adapter. The slave connection
+         *                 isn't closed by the adapter in the destructor,
+         *                 it will be closed by the slave connection itself
+         *                 when the shared pointer calls its destructor.
+         */
+        void connection (std::shared_ptr<Connection> conn_ptr);
 
         /**
          * Read data from the slave connection.

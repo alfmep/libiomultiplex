@@ -17,7 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/FdConnection.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/Log.hpp>
 #include <cstring>
 #include <cerrno>
@@ -38,7 +38,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    FdConnection::FdConnection (IOHandler& io_handler)
+    FdConnection::FdConnection (iohandler_base& io_handler)
         : fd {-1},
           ioh {&io_handler}
     {
@@ -47,7 +47,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    FdConnection::FdConnection (IOHandler& io_handler, int file_descriptor, bool keep_open)
+    FdConnection::FdConnection (iohandler_base& io_handler, int file_descriptor, bool keep_open)
         : fd {file_descriptor},
           ioh {&io_handler}
     {
@@ -115,7 +115,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IOHandler& FdConnection::io_handler ()
+    iohandler_base& FdConnection::io_handler ()
     {
         return *ioh;
     }
@@ -123,10 +123,10 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void FdConnection::cancel ()
+    void FdConnection::cancel (bool cancel_rx, bool cancel_tx)
     {
         TRACE ("ENTER");
-        ioh->cancel (*this);
+        ioh->cancel (*this, cancel_rx, cancel_tx);
         TRACE ("EXIT");
     }
 

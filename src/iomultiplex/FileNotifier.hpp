@@ -32,7 +32,7 @@
 namespace iomultiplex {
 
     // Forward declaration
-    class IOHandler;
+    class iohandler_base;
 
     /**
      * File I/O connection.
@@ -59,7 +59,7 @@ namespace iomultiplex {
          * Constructor.
          * @param io_handler This object will manage I/O operations.
          */
-        FileNotifier (IOHandler& io_handler);
+        FileNotifier (iohandler_base& io_handler);
 
         /**
          * Move Constructor.
@@ -93,9 +93,11 @@ namespace iomultiplex {
         void remove_watch (const std::string& pathname);
 
         /**
-         * Cancel all file wathers.
+         * Cancel all file watchers.
+         * @param cancel_rx Not used.
+         * @param cancel_tx Not used.
          */
-        virtual void cancel ();
+        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 
 
     private:

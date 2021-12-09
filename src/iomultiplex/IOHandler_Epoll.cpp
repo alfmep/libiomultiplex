@@ -17,8 +17,10 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/IOHandler_Epoll.hpp>
+#include <iomultiplex/io_result_t.hpp>
 #include <iomultiplex/Log.hpp>
 
+#include <sstream>
 #include <vector>
 #include <exception>
 #include <system_error>
@@ -32,7 +34,7 @@
 #include <sys/epoll.h>
 
 
-#define TRACE_DEBUG
+//#define TRACE_DEBUG
 
 #ifdef TRACE_DEBUG
 #  define TRACE_DEBUG_MISC
@@ -43,20 +45,21 @@
 #  include <iomanip>
 #endif
 #ifdef TRACE_DEBUG_MISC
-#  define TRACE(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#  define TRACE(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #  define TRACE(format, ...)
 #endif
 #ifdef TRACE_DEBUG_SIG
-#  define TRACE_SIG(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#  define TRACE_SIG(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #  define TRACE_SIG(format, ...)
 #endif
 #ifdef TRACE_DEBUG_POLL
-#  define TRACE_POLL(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#  define TRACE_POLL(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #  define TRACE_POLL(format, ...)
 #endif
+
 
 
 #ifdef RX_LIST
@@ -71,6 +74,71 @@
 
 
 namespace iomultiplex {
+
+
+#ifdef TRACE_DEBUG
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    static std::string events_to_string (uint32_t events)
+    {
+        std::stringstream ss;
+
+        bool first_event = true;
+
+        if (events & EPOLLIN) {
+            first_event = false;
+            ss << "IN";
+        }
+        if (events & EPOLLOUT) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "OUT";
+        }
+        if (events & EPOLLPRI) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "PRI";
+        }
+        if (events & EPOLLERR) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "ERR";
+        }
+        if (events & EPOLLRDHUP) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "RDHUP";
+        }
+        if (events & EPOLLHUP) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "HUP";
+        }
+        return ss.str ();
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    static std::string epoll_op_to_string (int op)
+    {
+        switch (op) {
+        case EPOLL_CTL_ADD:
+            return "add";
+        case EPOLL_CTL_MOD:
+            return "mod";
+        case EPOLL_CTL_DEL:
+            return "del";
+        default:
+            return "nop";
+        }
+    }
+#endif
 
 
     //--------------------------------------------------------------------------
@@ -107,14 +175,17 @@ namespace iomultiplex {
         io_callback_t   cb;         /**< Callback to be called when the operation is done. */
         bool            dummy_op;   /**< A dummy operation, don't actually try to read or write anything. */
         struct timespec timeout;    /**< Timeout value. */
-        timeout_map_t& timeout_map;
-        timeout_map_t::iterator timeout_map_pos; // Position in timeout_map
+        timeout_map_t& timeout_map; /**< A reference to the map holding this instance. */
+        timeout_map_t::iterator timeout_map_pos; // Position of this instance in timeout_map
 
-        // Make it easy to erase an ioop_t object from the IOHandler_Epoll's containers
+        // Make it easy to erase an ioop_t object from the IOHandler_Epolls containers
         bool is_rx;
         ioop_list_t::iterator ioop_list_pos; // Position in ioop list (tx or rx)
         fd_ops_map_t::iterator ops_map_pos;  // Position in file_desc->ioop_lists map
     };
+
+
+
 
 
     //--------------------------------------------------------------------------
@@ -142,7 +213,7 @@ namespace iomultiplex {
         sigaddset (&ctl_sigset, ctl_signal);
         if (sigprocmask(SIG_BLOCK, &ctl_sigset, &orig_sigmask) < 0) {
             int errnum = errno;
-            Log::debug ("IOHandler: Unable to set signal mask: %s", strerror(errno));
+            TRACE ("IOHandler_Epoll: Unable to set signal mask: %s", strerror(errno));
             throw std::system_error (errnum, std::system_category(),
                                      "Unable to set signal mask");
         }
@@ -158,13 +229,15 @@ namespace iomultiplex {
 
         if (sigaction(ctl_signal, &sa, &orig_sa) < 0) {
             int errnum = errno;
-            Log::debug ("IOHandler: Unable to install signal handler: %s", strerror(errno));
+            TRACE ("IOHandler_Epoll: Unable to install signal handler: %s", strerror(errno));
             sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
             throw std::system_error (errnum, std::system_category(),
                                      "Unable to install signal handler");
         }
 
-        ctl_fd = epoll_create (1);
+        // Create epoll control descriptor
+        //
+        ctl_fd = epoll_create1 (EPOLL_CLOEXEC);
         if (ctl_fd < 0) {
             throw std::system_error (errno,
                                      std::system_category(),
@@ -186,7 +259,7 @@ namespace iomultiplex {
         TRACE_SIG ("Uninstall handler for signal #%d", ctl_signal);
         sigaction (ctl_signal, &orig_sa, nullptr);
 
-        // Reset the signal mask
+        // Restore the original signal mask
         sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
     }
 
@@ -250,6 +323,7 @@ namespace iomultiplex {
         int errnum = 0;
         struct epoll_event events[32];
         int max_events = sizeof(events)/sizeof(events[0]);
+
         while (!quit) {
             struct timespec ts;
             int timeout = next_timeout ();
@@ -258,24 +332,25 @@ namespace iomultiplex {
                 TRACE_POLL ("Poll timeout in %d ms", timeout);
 #endif
             ops_mutex.unlock ();
-            auto result = epoll_pwait (ctl_fd,
-                                       events,
-                                       max_events,
-                                       timeout,
-                                       &orig_sigmask);
+            auto num_events = epoll_pwait (ctl_fd,
+                                           events,
+                                           max_events,
+                                           timeout,
+                                           &orig_sigmask);
             ops_mutex.lock ();
+
             if (timeout > -1)
                 clock_gettime (CLOCK_MONOTONIC, &ts);
 
-            if (result < 0) {
+            if (num_events < 0) {
                 if (errno != EINTR) {
                     errnum = errno;
                     quit = true;
-                    Log::debug ("IOHandler: error polling I/O: %s", strerror(errnum));
+                    TRACE ("IOHandler_Epoll: error polling I/O: %s", strerror(errnum));
                 }
             }else{
-                if (result > 0)
-                    io_dispatch (events, result);
+                if (num_events > 0)
+                    io_dispatch (events, num_events);
                 if (timeout>-1 && !timeout_map.empty())
                     handle_timeout (ts);
             }
@@ -330,18 +405,25 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler_Epoll::stop ()
+    void IOHandler_Epoll::signal_event ()
     {
-        if (!quit.exchange(true)) {
-            TRACE ("Quitting I/O handling");
-        }
-
         if (my_pid!=0 && my_pid != (pid_t)syscall(SYS_gettid)) {
             TRACE_SIG ("Send signal %d to thread id %u", ctl_signal, (unsigned)my_pid);
             pid_t tgid = getpid ();
             int err = syscall (SYS_tgkill, tgid, my_pid, ctl_signal);
             if (err)
-                Log::debug ("IOHandler: Unable to raise command signal: %s", strerror(err));
+                Log::info ("IOHandler_Epoll: Unable to raise command signal: %s", strerror(err));
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::stop ()
+    {
+        if (!quit.exchange(true)) {
+            TRACE ("Quitting I/O handling");
+            signal_event ();
         }
     }
 
@@ -386,8 +468,8 @@ namespace iomultiplex {
             return -1;
         }
 
-        TRACE ("Queue a %s operation on file desc %d, %u bytest requested",
-               (read?"Rx":"Tx"), fd, size);
+        TRACE ("Queue a %s%s operation on file desc %d, %u bytes requested",
+               (dummy_operation?"dummy ":""), (read?"Rx":"Tx"), fd, size);
 
         std::shared_ptr<ioop_t> ioop (std::make_shared<ioop_t>(
                                               timeout_map, read, conn, buf, size,
@@ -412,9 +494,16 @@ namespace iomultiplex {
                 op = EPOLL_CTL_MOD;
                 event.events = EPOLLIN | EPOLLOUT;
             }
+            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                        epoll_op_to_string(op).c_str(), fd, events_to_string(event.events).c_str());
             epoll_ctl (ctl_fd, op, fd, &event);
-            if (timeout != (unsigned)-1)
+            if (timeout != (unsigned)-1) {
+                //
+                // TODO: Optimize to only re-calculate timeout if new timeout is shorter than current
+                //
+                // We need to re-calculate the timeout in epoll_pwait, signal it
                 send_signal = true;
+            }
         }
         op_list.emplace_back (ioop);
 
@@ -433,11 +522,12 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler_Epoll::cancel_impl (int fd, bool rx, bool tx)
+    void IOHandler_Epoll::cancel (Connection& conn, bool rx, bool tx)
     {
         if (!rx && !tx)
             return;
 
+        auto fd = conn.handle ();
         if (fd < 0)
             return; // Invalid file handle
 
@@ -458,32 +548,46 @@ namespace iomultiplex {
         auto& rx_op_list {entry->RX_LIST};
         auto& tx_op_list {entry->TX_LIST};
 
-        //bool send_signal {false};
+        bool rx_ops_removed = false;
+        bool tx_ops_removed = false;
 
         if (rx && !rx_op_list.empty()) {
             // Clear read operations
             TRACE ("Erasing Rx operations for file descriptor %d", fd);
             rx_op_list.clear ();
-            //poll_set.schedule_deactivate (fd, POLLIN);
-            //send_signal = true;
+            rx_ops_removed = true;
         }
         if (tx && !tx_op_list.empty()) {
             // Clear write operations
             TRACE ("Erasing Tx operations for file descriptor %d", fd);
             tx_op_list.clear ();
-            //poll_set.schedule_deactivate (fd, POLLOUT);
-            //send_signal = true;
+            tx_ops_removed = true;
         }
 
+        // Nothing needed to be cancelled
+        if (!rx_ops_removed && !tx_ops_removed)
+            return;
+
         if (rx_op_list.empty() && tx_op_list.empty()) {
+            // All operations are cancelled
+            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                        epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
+            epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
             ops_map.erase (entry);
             if (fd_map_entry_removed.first == fd)
                 fd_map_entry_removed.second = true; // fd removed from ops_map
+        }else {
+            struct epoll_event event;
+            event.data.fd = fd;
+            if (rx_ops_removed)
+                event.events = EPOLLOUT; // RX operations cancelled, we still have TX operations
+            if (tx_ops_removed)
+                event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
+
+            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                        epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
+            epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
         }
-        /*
-        if (send_signal)
-            signal_event ();
-        */
     }
 
 
@@ -544,6 +648,7 @@ namespace iomultiplex {
             fd_ops_map_t::iterator ops_map_pos = ioop.ops_map_pos;
             ioop_list_t::iterator op_list_pos = ioop.ioop_list_pos;
             ioop_list_t& op_list = is_rx ? ops_map_pos->RX_LIST : ops_map_pos->TX_LIST;
+            ioop_list_t& other_op_list = is_rx ? ops_map_pos->TX_LIST : ops_map_pos->RX_LIST;
             int fd = ops_map_pos->first;
 
 #ifdef TRACE_DEBUG_MISC
@@ -553,10 +658,21 @@ namespace iomultiplex {
                    diff.tv_sec, diff.tv_nsec);
 #endif
             op_list.erase (op_list_pos);
-            /*
-            if (op_list.empty())
-                poll_set.schedule_deactivate (fd, (is_rx ? POLLIN : POLLOUT));
-            */
+            if (op_list.empty()) {
+                if (other_op_list.empty()) {
+                    // No more TX/RX operations
+                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                                epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
+                    epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+                }else{
+                    struct epoll_event event;
+                    event.data.fd = fd;
+                    event.events = is_rx ? EPOLLOUT : EPOLLIN;
+                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                                epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
+                    epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
+                }
+            }
 
             if (ops_map_pos->RX_LIST.empty() && ops_map_pos->TX_LIST.empty())
                 ops_map.erase (ops_map_pos);
@@ -574,11 +690,119 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // ops_mutex is locked!
     //--------------------------------------------------------------------------
-    void IOHandler_Epoll::io_dispatch (struct epoll_event* events, int num_events)
+    void IOHandler_Epoll::io_dispatch (struct epoll_event* io_events, int num_events)
     {
         TRACE ("Handle I/O");
         for (int i=0; i<num_events; ++i) {
+            auto fd = io_events[i].data.fd;
+            auto events = io_events[i].events;
+
+            if (fd < 0)
+                continue;
+
+            TRACE ("Events on file desc %d: 0x%08x (%s)",
+                   fd, events, events_to_string(events).c_str());
+
+            uint32_t err = events & (EPOLLERR|EPOLLHUP);
+            if (events & (EPOLLOUT|EPOLLHUP|EPOLLERR))
+                handle_event (fd, false, err);
+            if (events & (EPOLLIN|EPOLLHUP|EPOLLERR))
+                handle_event (fd, true, err);
         }
+    }
+
+
+    //--------------------------------------------------------------------------
+    // ops_mutex is locked!
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::handle_event (int fd, bool read, uint32_t error_flags)
+    {
+        TRACE ("Handle %s in file descriptor %d", (read?"input":"output"), fd);
+
+        auto entry = ops_map.find (fd);
+        if (entry == ops_map.end())
+            return;
+
+        auto* ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
+        auto* other_ioop_list = read ? &(entry->TX_LIST) : &(entry->RX_LIST);
+        bool done {false};
+        TRACE ("File descriptor %d have %d %s operation(s)", fd, ioop_list->size(), (read?"input":"output"));
+        while (!quit && !done && !ioop_list->empty()) {
+
+            auto ioop = ioop_list->front ();
+
+            if (ioop->dummy_op) {
+                // Dummy operation, don't read or write anything
+                ioop->result = 0;
+                ioop->errnum = 0;
+                done = true;
+            }else{
+                // Read or write using the connection object
+                if (read)
+                    ioop->result = ioop->conn.do_read (ioop->buf, ioop->size, ioop->offset, ioop->errnum);
+                else
+                    ioop->result = ioop->conn.do_write (ioop->buf, ioop->size, ioop->offset, ioop->errnum);
+                if (ioop->result < 0)
+                    done = true;
+            }
+
+            if (ioop->errnum == EAGAIN) {
+                ioop->result = 0;
+                ioop->errnum = 0;
+                done = true;
+                break;
+            }
+
+            ioop_list->pop_front ();
+
+            // Update poll set if needed
+            if (ioop_list->empty()) {
+                if (other_ioop_list->empty()) {
+                    // No more TX/RX operations
+                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                                epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
+                    epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+                }else{
+                    struct epoll_event event;
+                    event.data.fd = fd;
+                    event.events = read ? EPOLLOUT : EPOLLIN;
+                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                                epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
+                    epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
+                }
+            }
+
+            if (ioop->cb == nullptr) {
+                done = true;
+            }else{
+                fd_map_entry_removed.first = fd;
+                fd_map_entry_removed.second = false;
+                ops_mutex.unlock ();
+                if (!ioop->cb(*ioop))
+                    done = true;
+                ops_mutex.lock ();
+
+                // The callback may have invalidated the local variables 'entry' and 'ioop_list'
+                // by calling method 'cancel' and then perhaps 'read'/'write'.
+                if (fd_map_entry_removed.second == true) {
+                    // fd map entry is invalid
+                    entry = ops_map.find (fd);
+                    if (entry != ops_map.end()) {
+                        ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
+                        other_ioop_list = read ? &(entry->TX_LIST) : &(entry->RX_LIST);
+                    }else{
+                        ioop_list = nullptr;
+                        other_ioop_list = nullptr;
+                        done = true;
+                    }
+                }
+                fd_map_entry_removed.first = -1; // Invalidate the fd map check
+            }
+        }
+
+        if (entry != ops_map.end())
+            if (entry->RX_LIST.empty() && entry->TX_LIST.empty())
+                ops_map.erase (entry);
     }
 
 

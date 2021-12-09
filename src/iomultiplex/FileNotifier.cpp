@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/FileNotifier.hpp>
 #include <climits>
 #include <cerrno>
@@ -27,7 +27,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    FileNotifier::FileNotifier (IOHandler& io_handler)
+    FileNotifier::FileNotifier (iohandler_base& io_handler)
         : FdConnection (io_handler),
           pool (sizeof(inotify_event)+NAME_MAX+1, 4, 16)
     {
@@ -107,7 +107,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void FileNotifier::cancel ()
+    void FileNotifier::cancel (bool cancel_rx, bool cancel_tx)
     {
         std::lock_guard<std::mutex> lock (watch_mutex);
         watchers.clear ();

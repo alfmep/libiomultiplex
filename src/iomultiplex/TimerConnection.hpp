@@ -27,7 +27,7 @@
 namespace iomultiplex {
 
     // Forward declaration
-    class IOHandler;
+    class iohandler_base;
 
     /**
      * A timer that deliveres timer expiration notifications via a callback.
@@ -37,10 +37,10 @@ namespace iomultiplex {
 
         /**
          * Creates a timer object.
-         * @param io_handler An IOHandler object responsible for the I/O handling.
+         * @param io_handler An iohandler_base object responsible for the I/O handling.
          * @param clock_id The clock to use.
          */
-        TimerConnection (IOHandler& io_handler, int clock_id=CLOCK_BOOTTIME);
+        TimerConnection (iohandler_base& io_handler, int clock_id=CLOCK_BOOTTIME);
 
         /**
          * Move constructor.
@@ -85,18 +85,18 @@ namespace iomultiplex {
          */
         int set (unsigned timeout_ms, unsigned repeat_ms, std::function<void()> callback);
 
-
         /**
          * Activate the timer with an absolute time in the future.
          */
         int set (const struct timespec& timeout, std::function<void()> callback);
 
-
         /**
          * Cancel the timer.
          * De-activate the timer if activated.
+         * @param cancel_rx Not used.
+         * @param cancel_tx Not used.
          */
-        virtual void cancel ();
+        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 
 
     private:

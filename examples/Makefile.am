@@ -29,6 +29,25 @@ LDADD = -L../src -liomultiplex
 noinst_bindir =
 noinst_bin_PROGRAMS =
 
+noinst_bin_PROGRAMS += echo-server
+echo_server_SOURCES  = echo-server.cpp
+
+noinst_bin_PROGRAMS += echo-client
+echo_client_SOURCES  = echo-client.cpp
+
+noinst_bin_PROGRAMS  += adapter-test
+adapter_test_SOURCES  = adapter-test.cpp
+adapter_test_SOURCES += ObfuscateAdapter.cpp
+adapter_test_SOURCES += ObfuscateAdapter.hpp
+adapter_test_SOURCES += ShuffleAdapter.cpp
+adapter_test_SOURCES += ShuffleAdapter.hpp
+adapter_test_SOURCES += CaseAdapter.cpp
+adapter_test_SOURCES += CaseAdapter.hpp
+adapter_test_SOURCES += RobberAdapter.cpp
+adapter_test_SOURCES += RobberAdapter.hpp
+adapter_test_SOURCES += ReverseAdapter.cpp
+adapter_test_SOURCES += ReverseAdapter.hpp
+
 noinst_bin_PROGRAMS += utftpd
 utftpd_SOURCES =  utftpd.cpp
 utftpd_SOURCES += utftpd.hpp

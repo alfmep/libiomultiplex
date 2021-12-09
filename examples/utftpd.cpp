@@ -45,7 +45,7 @@ static constexpr const int tftp_err_opcode    = 3;
 static constexpr const int tftp_err_busy      = 4;
 
 
-static std::vector<std::unique_ptr<iom::IOHandler>> workers;
+static std::vector<std::unique_ptr<iom::iohandler_base>> workers;
 static std::mutex server_done;
 static std::atomic_int num_clients (0);
 
@@ -393,7 +393,7 @@ int main (int argc, char* argv[])
     std::vector<iom::SocketConnection> listeners;
     for (int i=0; i<opt.num_workers; ++i) {
         // Create a new I/O handler
-        workers.emplace_back (std::make_unique<iom::IOHandler>(SIGRTMIN+i));
+        workers.emplace_back (std::make_unique<iom::IOHandler_Epoll>(SIGRTMIN+i));
         auto& ioh = *workers.back();
 
         // Create new socket listener

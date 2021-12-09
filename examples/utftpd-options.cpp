@@ -92,7 +92,7 @@ void appargs_t::print_usage_and_exit (std::ostream& out, int exit_code)
         << "  -h, --help                  Print this help message." << std::endl
         << std::endl;
 
-        exit (exit_code);
+    exit (exit_code);
 }
 
 

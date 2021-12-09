@@ -19,6 +19,9 @@
 #ifndef IOMULTIPLEX_IOHANDLER_EPOLL_HPP
 #define IOMULTIPLEX_IOHANDLER_EPOLL_HPP
 
+#include <iomultiplex/types.hpp>
+#include <iomultiplex/Connection.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <functional>
 #include <memory>
 #include <atomic>
@@ -34,11 +37,6 @@
 #include <poll.h>
 #include <sys/epoll.h>
 
-#include <iomultiplex/types.hpp>
-#include <iomultiplex/Connection.hpp>
-#include <iomultiplex/PollDescriptors.hpp>
-#include <iomultiplex/io_result_t.hpp>
-
 
 namespace iomultiplex {
 
@@ -46,11 +44,11 @@ namespace iomultiplex {
     /**
      * I/O handler.
      */
-    class IOHandler_Epoll {
+    class IOHandler_Epoll : public iohandler_base {
     public:
         /**
          * Constructor.
-         * @param signal_num The signal number used internally by the IOHandler.
+         * @param signal_num The signal number used internally by the iohandler_base.
          *                   Default is SIGRTMIN. Change this if the application
          *                   is using this signal for other purposes.
          */
@@ -59,14 +57,14 @@ namespace iomultiplex {
         /**
          * Destructor.
          */
-        ~IOHandler_Epoll ();
+        virtual ~IOHandler_Epoll ();
 
         /**
          * Run the I/O handler until stopped with method 'stop' or an error occurrs.
          * @param start_worker_thread If <code>true</code> start a new thread
          *                            to handle the I/O.
          */
-        int run (bool start_worker_thread=false);
+        virtual int run (bool start_worker_thread=false);
 
         /**
          * Stop the I/O handler.
@@ -74,73 +72,42 @@ namespace iomultiplex {
          * the worker thread is signaled to stop and then
          * this method returns. To wait for the worker thread
          * to be stopped, call method join.
-         * @see IOHandler_Epoll::join
+         * @see iohandler_base::join
          */
-        void stop ();
+        virtual void stop ();
 
         /**
-         * Queue a read operation for a connection.
+         * Cancel all input and/or output operations for a connection.
+         * This will cancel all I/O operations for the
+         * specified connection. The pending I/O operations
+         * will have a result of -1 and <code>errnum</code>
+         * set to <code>ECANCELED</code>.
          */
-        inline int read (Connection& conn,
-                         void* buf,
-                         size_t size,
-                         off_t offset,
-                         io_callback_t rx_cb=nullptr,
-                         unsigned timeout=-1,
-                         const bool dummy_operation=false)
-        {
-            return queue_io_op (conn, buf, size, offset, rx_cb,
-                                true, dummy_operation, timeout);
-        }
-
-        /**
-         * Queue a write operation for a connection.
-         */
-        inline int write (Connection& conn,
-                          const void* buf,
-                          size_t size,
-                          off_t offset,
-                          io_callback_t tx_cb=nullptr,
-                          unsigned timeout=-1,
-                          const bool dummy_operation=false)
-        {
-            return queue_io_op (conn, const_cast<void*>(buf), size, offset, tx_cb,
-                                false, dummy_operation, timeout);
-        }
-
-        /**
-         * Cancel all operations for a connection.
-         */
-        inline void cancel (Connection& conn) {
-            cancel_impl (conn.handle(), true, true);
-        }
-
-        /**
-         * Cancel all RX operations for a connection.
-         */
-        inline void cancel_rx (Connection& conn) {
-            cancel_impl (conn.handle(), true, false);
-        }
-
-        /**
-         * Cancel all TX operations for a connection.
-         */
-        inline void cancel_tx (Connection& conn) {
-            cancel_impl (conn.handle(), false, true);
-        }
+        virtual void cancel (Connection& conn, bool cancel_rx=true, bool cancel_tx=true);
 
         /**
          * Check if the I/O handler is running in the same
          * context(i.e. same thread) as the caller.
          */
-        bool same_context () const;
+        virtual bool same_context () const;
 
         /**
          * If the I/O handler is run in a worker thread,
          * wait for the worker thread to terminate.
          * If not, return immediately.
          */
-        void join ();
+        virtual void join ();
+
+
+    protected:
+        virtual int queue_io_op (Connection& conn,
+                                 void* buf,
+                                 size_t size,
+                                 off_t offset,
+                                 io_callback_t cb,
+                                 const bool read,
+                                 const bool dummy_operation,
+                                 unsigned timeout);
 
 
     private:
@@ -181,17 +148,10 @@ namespace iomultiplex {
         int start_running (bool start_worker_thread);
         void end_running ();
 
-        int queue_io_op (Connection& conn,
-                         void* buf,
-                         size_t size,
-                         off_t offset,
-                         io_callback_t cb,
-                         const bool read,
-                         const bool dummy_operation,
-                         unsigned timeout);
-        void cancel_impl (int fd, bool rx, bool tx);
         void handle_timeout (struct timespec& now);
         void io_dispatch (struct epoll_event* events, int num_events);
+        void handle_event (int fd, bool read, uint32_t error_flags);
+        void signal_event ();
     };
 
 

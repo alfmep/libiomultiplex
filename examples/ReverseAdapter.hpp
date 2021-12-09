@@ -16,22 +16,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef IOMULTIPLEX_UTILS_HPP
-#define IOMULTIPLEX_UTILS_HPP
+#ifndef IOMULTIPLEX_EXAMPLES_REVERSEADAPTER_HPP
+#define IOMULTIPLEX_EXAMPLES_REVERSEADAPTER_HPP
 
-#include <iomultiplex/iohandler_base.hpp>
+#include <iomultiplex/Adapter.hpp>
 #include <iomultiplex/Connection.hpp>
-#include <iomultiplex/FdConnection.hpp>
-#include <utility>
+#include <memory>
 
 
-namespace iomultiplex {
+namespace adapter_test {
 
 
     /**
-     *
+     * An I/O adapter that reverses each read/written data chunk.
      */
-    std::pair<FdConnection, FdConnection> make_pipe (iohandler_base& ioh, int flags=0);
+    class ReverseAdapter : public iomultiplex::Adapter {
+    public:
+        ReverseAdapter (iomultiplex::Connection& conn, bool close_on_destruct=false);
+        ReverseAdapter (std::shared_ptr<iomultiplex::Connection> conn_ptr);
+        virtual ~ReverseAdapter () = default;
+
+        virtual ssize_t do_read (void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_write (const void* buf, size_t size, off_t offset, int& errnum);
+
+    private:
+        std::unique_ptr<char> wbuf;
+        size_t wbuf_size;
+    };
+
 
 }
+
+
 #endif

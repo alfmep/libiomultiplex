@@ -20,6 +20,7 @@
 #define IOMULTIPLEX_CONNECTION_HPP
 
 #include <iomultiplex/types.hpp>
+#include <iomultiplex/io_result_t.hpp>
 #include <condition_variable>
 #include <mutex>
 #include <cstdlib>
@@ -28,7 +29,7 @@
 namespace iomultiplex {
 
     // Forward declaration
-    class IOHandler;
+    class iohandler_base;
 
 
     /**
@@ -71,11 +72,11 @@ namespace iomultiplex {
         virtual bool is_open () const = 0;
 
         /**
-         * Return the IOHandler object used by this connection.
-         * @return The IOHandler object that manages the
+         * Return the iohandler_base object used by this connection.
+         * @return The iohandler_base object that manages the
          *         I/O operations for this connection.
          */
-        virtual IOHandler& io_handler () = 0;
+        virtual iohandler_base& io_handler () = 0;
 
         /**
          * Cancel all I/O operations for this connection.
@@ -86,8 +87,11 @@ namespace iomultiplex {
          * and <code>ECANCELED</code> respectively.<br/>
          * This is done so allocated resources associated
          * with the I/O operation can be released.
+         *
+         * @param cancel_rx If true, cancel all input operations.
+         * @param cancel_tx If true, cancel all output operations.
          */
-        virtual void cancel () = 0;
+        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true) = 0;
 
         /**
          * Close the connection.
@@ -340,7 +344,7 @@ namespace iomultiplex {
         /**
          * Do the actual reading from the connection.
          * This method should normally not be called directly,
-         * it is called by the IOHandler when the connection is
+         * it is called by the iohandler_base when the connection is
          * ready to read data.
          * @param buf A pointer to the memory area where data should be stored.
          * @param size The number of bytes to read.
@@ -358,7 +362,7 @@ namespace iomultiplex {
         /**
          * Do the actual writing to the connection.
          * This method should normally not be called directly,
-         * it is called by the IOHandler when the connection is
+         * it is called by the iohandler_base when the connection is
          * ready to write data.
          * @param buf A pointer to the memory area that should be written.
          * @param size The number of bytes to write.

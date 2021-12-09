@@ -17,7 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/TimerConnection.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/Log.hpp>
 #include <stdexcept>
 #include <cstring>
@@ -34,7 +34,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    TimerConnection::TimerConnection (IOHandler& io_handler, int clock_id)
+    TimerConnection::TimerConnection (iohandler_base& io_handler, int clock_id)
         : FdConnection (io_handler),
           overrun {0},
           cb {nullptr}
@@ -99,7 +99,7 @@ namespace iomultiplex {
     int TimerConnection::set (unsigned timeout, unsigned repeat, std::function<void()> callback)
     {
         // Cancel pending read operation
-        io_handler().cancel_rx (*this);
+        cancel (true, false);
 
         if (callback == nullptr)
             return 0;
@@ -151,7 +151,7 @@ namespace iomultiplex {
                               std::function<void()> callback)
     {
         // Cancel pending read operation
-        io_handler().cancel_rx (*this);
+        io_handler().cancel (*this, true, false);
 
         if (callback == nullptr)
             return 0;
@@ -178,7 +178,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void TimerConnection::cancel ()
+    void TimerConnection::cancel (bool cancel_rx, bool cancel_tx)
     {
         io_handler().cancel (*this);
         struct itimerspec it {0};

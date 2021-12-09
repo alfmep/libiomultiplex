@@ -17,7 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/FileConnection.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/Log.hpp>
 #include <cstring>
 #include <unistd.h>
@@ -31,7 +31,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    FileConnection::FileConnection (IOHandler& io_handler)
+    FileConnection::FileConnection (iohandler_base& io_handler)
         : FdConnection (io_handler),
           name ("")
     {
@@ -40,7 +40,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    FileConnection::FileConnection (IOHandler& io_handler,
+    FileConnection::FileConnection (iohandler_base& io_handler,
                                     const std::string& file,
                                     int flags)
         : FdConnection (io_handler),
@@ -52,7 +52,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    FileConnection::FileConnection (IOHandler& io_handler,
+    FileConnection::FileConnection (iohandler_base& io_handler,
                                     const std::string& file,
                                     int flags,
                                     int mode)

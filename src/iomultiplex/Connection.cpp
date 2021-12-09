@@ -17,7 +17,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/Connection.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <cerrno>
 #include <unistd.h>
 
@@ -82,7 +82,7 @@ namespace iomultiplex {
                   size,
                   offset,
                   [this, &result, &io_done, &errnum](io_result_t& ior)->bool{
-                      // Called from IOHandler
+                      // Called from iohandler_base
                       std::unique_lock<std::mutex> lock (sync_mutex);
                       result = ior.result;
                       errnum = ior.errnum;
@@ -141,7 +141,7 @@ namespace iomultiplex {
                    size,
                    offset,
                    [this, &result, &io_done, &errnum](io_result_t& ior)->bool{
-                      // Called from IOHandler
+                      // Called from iohandler_base
                        std::unique_lock<std::mutex> lock (sync_mutex);
                        result = ior.result;
                        errnum = ior.errnum;
@@ -191,7 +191,7 @@ namespace iomultiplex {
         bool io_done = false;
         // Queue a dummy read operation
         if (wait_for_rx([this, &retval, &errnum, &io_done](io_result_t& ior)->bool{
-                    // Called from IOHandler
+                    // Called from iohandler_base
                     std::unique_lock<std::mutex> lock (sync_mutex);
                     retval = ior.result;
                     errnum = ior.errnum;
@@ -240,7 +240,7 @@ namespace iomultiplex {
         int errnum = 0;
         bool io_done = false;
         if (wait_for_tx([this, &retval, &errnum, &io_done](io_result_t& ior)->bool{
-                    // Called from IOHandler
+                    // Called from iohandler_base
                     std::unique_lock<std::mutex> lock (sync_mutex);
                     retval = ior.result;
                     errnum = ior.errnum;

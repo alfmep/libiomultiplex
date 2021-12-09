@@ -60,7 +60,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    TimerSet::TimerSet (IOHandler& ioh)
+    TimerSet::TimerSet (iohandler_base& ioh)
         : timer (ioh, CLOCK_BOOTTIME),
           next_id {-1}
     {

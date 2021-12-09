@@ -20,7 +20,7 @@
 #define IOMULTIPLEX_TIMERSET_HPP
 
 #include <iomultiplex/types.hpp>
-#include <iomultiplex/IOHandler.hpp>
+#include <iomultiplex/iohandler_base.hpp>
 #include <iomultiplex/TimerConnection.hpp>
 #include <functional>
 #include <mutex>
@@ -48,9 +48,9 @@ namespace iomultiplex {
 
         /**
          * Constructor.
-         * @param ioh An IOHandler object.
+         * @param ioh An iohandler_base object.
          */
-        TimerSet (IOHandler& ioh);
+        TimerSet (iohandler_base& ioh);
 
         /**
          * Destructor.
