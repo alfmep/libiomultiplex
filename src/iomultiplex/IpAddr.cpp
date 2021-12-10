@@ -24,6 +24,10 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#ifndef s6_addr16
+#  define s6_addr16 __in6_u.__u6_addr16
+#endif
+
 
 namespace iomultiplex {
 
@@ -275,20 +279,17 @@ namespace iomultiplex {
         }
 
         const std::string& addr = ip_str.empty() ? address : ip_str;
-        struct in_addr  ipv4;
-        struct in6_addr ipv6;
+        struct in_addr  ipv4addr;
+        struct in6_addr ipv6addr;
 
-        if (try_ipv4 && inet_pton(AF_INET, addr.c_str(), &ipv4)) {
+        if (try_ipv4 && inet_pton(AF_INET, addr.c_str(), &ipv4addr)) {
             ((struct sockaddr_in&)sa).sin_family = AF_INET;
-            ((struct sockaddr_in&)sa).sin_addr.s_addr = ipv4.s_addr;
+            ((struct sockaddr_in&)sa).sin_addr = ipv4addr;
             success = true;
         }
-        else if (try_ipv6 && inet_pton(AF_INET6, addr.c_str(), &ipv6)) {
+        else if (try_ipv6 && inet_pton(AF_INET6, addr.c_str(), &ipv6addr)) {
             ((struct sockaddr_in6&)sa).sin6_family = AF_INET6;
-            ((struct sockaddr_in6&)sa).sin6_addr.s6_addr32[0] = ipv6.s6_addr32[0];
-            ((struct sockaddr_in6&)sa).sin6_addr.s6_addr32[1] = ipv6.s6_addr32[1];
-            ((struct sockaddr_in6&)sa).sin6_addr.s6_addr32[2] = ipv6.s6_addr32[2];
-            ((struct sockaddr_in6&)sa).sin6_addr.s6_addr32[3] = ipv6.s6_addr32[3];
+            ((struct sockaddr_in6&)sa).sin6_addr = ipv6addr;
             success = true;
         }
         if (success && port_num != -1)

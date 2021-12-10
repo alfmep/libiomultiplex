@@ -39,7 +39,7 @@ namespace iomultiplex {
         }else{
             fd[0] = fd[1] = -1;
         }
-        return std::move (std::make_pair(FdConnection(ioh, fd[0]), FdConnection(ioh, fd[1])));
+        return std::make_pair(FdConnection(ioh, fd[0]), FdConnection(ioh, fd[1]));
     }
 
 
