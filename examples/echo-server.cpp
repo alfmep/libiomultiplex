@@ -50,8 +50,7 @@ int main (int argc, char* argv[])
     iom::Log::set_callback (logger);
     iom::Log::priority (LOG_DEBUG);
 
-    //iom::IOHandler_Poll ioh;
-    iom::IOHandler_Epoll ioh;
+    iom::default_iohandler ioh;
     iom::SocketConnection sock (ioh);
 
     // Start the I/O handler in a worker thread

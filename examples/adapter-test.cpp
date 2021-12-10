@@ -262,7 +262,7 @@ int main (int argc, char* argv[])
     //
     // Start I/O multiplexer with a worker thread
     //
-    iom::IOHandler_Epoll ioh;
+    iom::default_iohandler ioh;
     ioh.run (true);
 
     // Open files and create adapters

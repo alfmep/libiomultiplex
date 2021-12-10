@@ -40,6 +40,15 @@
 namespace iomultiplex {
 
 
+    // Forward declaration
+    class IOHandler_Epoll;
+
+    /**
+     * Default I/O handler implementation.
+     */
+    using default_iohandler = IOHandler_Epoll;
+
+
     /**
      * I/O handler.
      * This class is responsible for managing the I/O operations

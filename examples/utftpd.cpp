@@ -393,7 +393,7 @@ int main (int argc, char* argv[])
     std::vector<iom::SocketConnection> listeners;
     for (int i=0; i<opt.num_workers; ++i) {
         // Create a new I/O handler
-        workers.emplace_back (std::make_unique<iom::IOHandler_Epoll>(SIGRTMIN+i));
+        workers.emplace_back (std::make_unique<iom::default_iohandler>(SIGRTMIN+i));
         auto& ioh = *workers.back();
 
         // Create new socket listener
