@@ -103,7 +103,6 @@ namespace iomultiplex {
         virtual int queue_io_op (Connection& conn,
                                  void* buf,
                                  size_t size,
-                                 off_t offset,
                                  io_callback_t cb,
                                  const bool read,
                                  const bool dummy_operation,

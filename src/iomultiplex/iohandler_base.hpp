@@ -104,12 +104,11 @@ namespace iomultiplex {
         inline int read (Connection& conn,
                          void* buf,
                          size_t size,
-                         off_t offset,
                          io_callback_t rx_cb=nullptr,
                          unsigned timeout=-1,
                          const bool dummy_operation=false)
         {
-            return queue_io_op (conn, buf, size, offset, rx_cb,
+            return queue_io_op (conn, buf, size, rx_cb,
                                 true, dummy_operation, timeout);
         }
 
@@ -128,12 +127,11 @@ namespace iomultiplex {
         inline int write (Connection& conn,
                           const void* buf,
                           size_t size,
-                          off_t offset,
                           io_callback_t tx_cb=nullptr,
                           unsigned timeout=-1,
                           const bool dummy_operation=false)
         {
-            return queue_io_op (conn, const_cast<void*>(buf), size, offset, tx_cb,
+            return queue_io_op (conn, const_cast<void*>(buf), size, tx_cb,
                                 false, dummy_operation, timeout);
         }
 
@@ -166,7 +164,6 @@ namespace iomultiplex {
         virtual int queue_io_op (Connection& conn,
                                  void* buf,
                                  size_t size,
-                                 off_t offset,
                                  io_callback_t cb,
                                  const bool read,
                                  const bool dummy_operation,

@@ -588,7 +588,6 @@ namespace iomultiplex {
                 io_result_t res (ior.conn,
                                  buf,
                                  size,
-                                 ior.offset,
                                  ior.result,
                                  ior.errnum);
                 bool retval = false;
@@ -676,7 +675,6 @@ namespace iomultiplex {
                 io_result_t res (ior.conn,
                                  const_cast<void*>(buf),
                                  size,
-                                 ior.offset,
                                  result,
                                  errno<0 ? errno : 0);
                 bool retval = false;

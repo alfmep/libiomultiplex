@@ -176,10 +176,10 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t Adapter::do_read (void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t Adapter::do_read (void* buf, size_t size, int& errnum)
     {
         if (slave) {
-            return slave->do_read (buf, size, offset, errnum);
+            return slave->do_read (buf, size, errnum);
         }else{
             errnum = EBADF;
             return -1;
@@ -189,10 +189,10 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t Adapter::do_write (const void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t Adapter::do_write (const void* buf, size_t size, int& errnum)
     {
         if (slave) {
-            return slave->do_write (buf, size, offset, errnum);
+            return slave->do_write (buf, size, errnum);
         }else{
             errnum = EBADF;
             return -1;

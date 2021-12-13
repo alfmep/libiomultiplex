@@ -180,8 +180,6 @@ namespace iomultiplex {
          *
          * @param buf A pointer to the memory area where data should be stored.
          * @param size The number of bytes to read.
-         * @param offset The offset in the connection where to read.
-         *               <br/><i>Not supported by all types of connections.</i>
          * @param errnum The value of <code>errno</code> after
          *               the read operation. Always 0 if no error occurred.
          *
@@ -193,7 +191,7 @@ namespace iomultiplex {
          *         On error, -1 is returned and parameter <code>errnum</code>
          *         is set to some appropriate value.
          */
-        virtual ssize_t do_read (void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_read (void* buf, size_t size, int& errnum);
 
         /**
          * Write data on the slave connection.
@@ -208,8 +206,6 @@ namespace iomultiplex {
          *
          * @param buf A pointer to the memory that should be written.
          * @param size The number of bytes to write.
-         * @param offset The offset in the connection where to write.
-         *               <br/><i>Not supported by all types of connections.</i>
          * @param errnum The value of <code>errno</code> after
          *               the read operation. Always 0 if no error occurred.
          *
@@ -221,7 +217,7 @@ namespace iomultiplex {
          *         On error, -1 is returned and parameter <code>errnum</code>
          *         is set to some appropriate value.
          */
-        virtual ssize_t do_write (const void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_write (const void* buf, size_t size, int& errnum);
 
 
     protected:

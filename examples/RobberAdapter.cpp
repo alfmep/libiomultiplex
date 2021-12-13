@@ -51,7 +51,7 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t RobberAdapter::do_write (const void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t RobberAdapter::do_write (const void* buf, size_t size, int& errnum)
     {
         if (wbuf_size < size*3) {
             wbuf.reset (new char[size*3]);
@@ -72,7 +72,7 @@ namespace adapter_test {
             }
         }
 
-        auto retval = iomultiplex::Adapter::do_write (wbuf.get(), wsize, offset, errnum);
+        auto retval = iomultiplex::Adapter::do_write (wbuf.get(), wsize, errnum);
 
         // We can't really say we have written more than 'size' bytes, can we?
         if (retval>0  &&  (size_t)retval>size)

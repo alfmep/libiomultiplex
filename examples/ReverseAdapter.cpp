@@ -44,9 +44,9 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t ReverseAdapter::do_read (void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t ReverseAdapter::do_read (void* buf, size_t size, int& errnum)
     {
-        auto result = iomultiplex::Adapter::do_read (buf, size, offset, errnum);
+        auto result = iomultiplex::Adapter::do_read (buf, size, errnum);
         if (result > 0)
             std::reverse ((char*)buf, ((char*)buf)+result);
         return result;
@@ -55,7 +55,7 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t ReverseAdapter::do_write (const void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t ReverseAdapter::do_write (const void* buf, size_t size, int& errnum)
     {
         if (size > wbuf_size) {
             wbuf.reset (new char[size]);
@@ -65,7 +65,7 @@ namespace adapter_test {
             for (size_t i=0; i<size; ++i)
                 wbuf.get()[i] = ((char*)buf)[size-1-i];
         }
-        return iomultiplex::Adapter::do_write (wbuf.get(), size, offset, errnum);
+        return iomultiplex::Adapter::do_write (wbuf.get(), size, errnum);
     }
 
 

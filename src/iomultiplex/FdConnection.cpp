@@ -73,10 +73,8 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     FdConnection::~FdConnection ()
     {
-        TRACE ("ENTER");
         if (!keep_open)
             close ();
-        TRACE ("EXIT");
     }
 
 
@@ -125,9 +123,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void FdConnection::cancel (bool cancel_rx, bool cancel_tx)
     {
-        TRACE ("ENTER");
         ioh->cancel (*this, cancel_rx, cancel_tx);
-        TRACE ("EXIT");
     }
 
 
@@ -135,35 +131,29 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void FdConnection::close ()
     {
-        TRACE ("ENTER");
         cancel ();
         int tmp_fd = fd.exchange (-1);
         if (tmp_fd != -1)
             ::close (tmp_fd);
-        TRACE ("EXIT");
     }
 
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t FdConnection::do_read (void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t FdConnection::do_read (void* buf, size_t size, int& errnum)
     {
-        TRACE ("ENTER");
-        ssize_t result = offset==-1 ? ::read(fd, buf, size) : ::pread(fd, buf, size, offset);
+        ssize_t result = ::read(fd, buf, size);
         errnum = result<0 ? errno : 0;
-        TRACE ("EXIT");
         return result;
     }
 
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t FdConnection::do_write (const void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t FdConnection::do_write (const void* buf, size_t size, int& errnum)
     {
-        TRACE ("ENTER");
-        ssize_t result = offset==-1 ? ::write(fd, buf, size) : ::pwrite(fd, buf, size, offset);
+        ssize_t result = ::write(fd, buf, size);
         errnum = result<0 ? errno : 0;
-        TRACE ("EXIT");
         return result;
     }
 

@@ -45,17 +45,15 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // Asynchronized operation
     //--------------------------------------------------------------------------
-    int Connection::pread (void* buf,
-                           size_t size,
-                           off_t offset,
-                           io_callback_t rx_cb,
-                           unsigned timeout)
+    int Connection::read (void* buf,
+                          size_t size,
+                          io_callback_t rx_cb,
+                          unsigned timeout)
     {
         // Queue a read operation
         return io_handler().read (*this,
                                   buf,
                                   size,
-                                  offset,
                                   rx_cb != nullptr ? rx_cb : def_rx_cb,
                                   timeout);
     }
@@ -65,10 +63,9 @@ namespace iomultiplex {
     // Synchronized operation
     // (assumes the I/O handler running in another thread)
     //--------------------------------------------------------------------------
-    ssize_t Connection::pread (void* buf,
-                               size_t size,
-                               off_t offset,
-                               unsigned timeout)
+    ssize_t Connection::read (void* buf,
+                              size_t size,
+                              unsigned timeout)
     {
         if (io_handler().same_context()) {
             errno = EDEADLK;
@@ -78,19 +75,18 @@ namespace iomultiplex {
         bool io_done = false;
         int errnum = 0;
         // Queue a read operation
-        if (pread(buf,
-                  size,
-                  offset,
-                  [this, &result, &io_done, &errnum](io_result_t& ior)->bool{
-                      // Called from iohandler_base
-                      std::unique_lock<std::mutex> lock (sync_mutex);
-                      result = ior.result;
-                      errnum = ior.errnum;
-                      io_done = true;
-                      sync_cond.notify_one ();
-                      return false;
-                  },
-                  timeout) == 0)
+        if (read(buf,
+                 size,
+                 [this, &result, &io_done, &errnum](io_result_t& ior)->bool{
+                     // Called from iohandler_base
+                     std::unique_lock<std::mutex> lock (sync_mutex);
+                     result = ior.result;
+                     errnum = ior.errnum;
+                     io_done = true;
+                     sync_cond.notify_one ();
+                     return false;
+                 },
+                 timeout) == 0)
         {
             // Wait for the read operation to finish or timeout
             std::unique_lock<std::mutex> lock (sync_mutex);
@@ -104,17 +100,15 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // Asynchronized operation
     //--------------------------------------------------------------------------
-    int Connection::pwrite (const void* buf,
-                              size_t size,
-                              off_t offset,
-                              io_callback_t tx_cb,
-                              unsigned timeout)
+    int Connection::write (const void* buf,
+                           size_t size,
+                           io_callback_t tx_cb,
+                           unsigned timeout)
     {
         // Queue a write operation
         return io_handler().write (*this,
                            buf,
                            size,
-                           offset,
                            tx_cb != nullptr ? tx_cb : def_tx_cb,
                            timeout);
     }
@@ -124,10 +118,9 @@ namespace iomultiplex {
     // Synchronized operation
     // (assumes the I/O handler running in another thread)
     //--------------------------------------------------------------------------
-    ssize_t Connection::pwrite (const void* buf,
-                                  size_t size,
-                                  off_t offset,
-                                  unsigned timeout)
+    ssize_t Connection::write (const void* buf,
+                               size_t size,
+                               unsigned timeout)
     {
         if (io_handler().same_context()) {
             errno = EDEADLK;
@@ -137,19 +130,18 @@ namespace iomultiplex {
         bool io_done = false;
         int errnum = 0;
         // Queue a write operation
-        if (pwrite(buf,
-                   size,
-                   offset,
-                   [this, &result, &io_done, &errnum](io_result_t& ior)->bool{
+        if (write(buf,
+                  size,
+                  [this, &result, &io_done, &errnum](io_result_t& ior)->bool{
                       // Called from iohandler_base
-                       std::unique_lock<std::mutex> lock (sync_mutex);
-                       result = ior.result;
-                       errnum = ior.errnum;
-                       io_done = true;
-                       sync_cond.notify_one ();
-                       return false;
-                   },
-                   timeout) == 0)
+                      std::unique_lock<std::mutex> lock (sync_mutex);
+                      result = ior.result;
+                      errnum = ior.errnum;
+                      io_done = true;
+                      sync_cond.notify_one ();
+                      return false;
+                  },
+                  timeout) == 0)
         {
             // Wait for the write operation to finish or timeout
             std::unique_lock<std::mutex> lock (sync_mutex);
@@ -168,7 +160,6 @@ namespace iomultiplex {
         // Queue a dummy read operation
         return io_handler().read (*this,
                           nullptr,
-                          0,
                           0,
                           rx_cb != nullptr ? rx_cb : def_rx_cb,
                           timeout,
@@ -218,7 +209,6 @@ namespace iomultiplex {
         // Queue a dummy write operation
         return io_handler().write (*this,
                            nullptr,
-                           0,
                            0,
                            tx_cb != nullptr ? tx_cb : def_tx_cb,
                            timeout,

@@ -166,7 +166,7 @@ namespace iomultiplex {
     class IOHandler_Epoll::ioop_t : public io_result_t {
     public:
         ioop_t (timeout_map_t& tm, bool read,
-                Connection& c, void* b, size_t s, off_t o,
+                Connection& c, void* b, size_t s,
                 const io_callback_t& cb,
                 unsigned timeout_ms, const bool dummy);
 
@@ -450,7 +450,6 @@ namespace iomultiplex {
     int IOHandler_Epoll::queue_io_op (Connection& conn,
                                 void* buf,
                                 size_t size,
-                                off_t offset,
                                 io_callback_t cb,
                                 const bool read,
                                 const bool dummy_operation,
@@ -473,7 +472,7 @@ namespace iomultiplex {
 
         std::shared_ptr<ioop_t> ioop (std::make_shared<ioop_t>(
                                               timeout_map, read, conn, buf, size,
-                                              offset, cb, timeout, dummy_operation));
+                                              cb, timeout, dummy_operation));
         bool send_signal {false};
 
         auto entry = ops_map.find (fd);
@@ -639,7 +638,6 @@ namespace iomultiplex {
             io_result_t result (ioop.conn,
                                 ioop.buf,
                                 ioop.size,
-                                ioop.offset,
                                 -1,
                                 ETIMEDOUT);
 
@@ -739,9 +737,9 @@ namespace iomultiplex {
             }else{
                 // Read or write using the connection object
                 if (read)
-                    ioop->result = ioop->conn.do_read (ioop->buf, ioop->size, ioop->offset, ioop->errnum);
+                    ioop->result = ioop->conn.do_read (ioop->buf, ioop->size, ioop->errnum);
                 else
-                    ioop->result = ioop->conn.do_write (ioop->buf, ioop->size, ioop->offset, ioop->errnum);
+                    ioop->result = ioop->conn.do_write (ioop->buf, ioop->size, ioop->errnum);
                 if (ioop->result < 0)
                     done = true;
             }
@@ -816,11 +814,10 @@ namespace iomultiplex {
                                Connection& c,
                                void* b,
                                size_t s,
-                               off_t o,
                                const io_callback_t& callback,
                                unsigned timeout_ms,
                                const bool dummy)
-        : io_result_t (c, b, s, o, 0, 0),
+        : io_result_t (c, b, s, 0, 0),
           cb {callback},
           dummy_op {dummy},
           timeout_map {tm},

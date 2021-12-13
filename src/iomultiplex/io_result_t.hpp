@@ -37,21 +37,16 @@ namespace iomultiplex {
         Connection& conn;   /**< The connection that requested the read/write operation. */
         void*       buf;    /**< The buffer that was read to/written from. */
         size_t      size;   /**< The requested number of bytes to read/write. */
-        off_t       offset; /**< The requested offset from where to read/write data.
-                             *   -1 equals current location.
-                             *   <br/>Not relevant for all types of connections.
-                             */
         ssize_t     result; /**< The number of bytes that was read/written, or -1 on error.
                              *   A value of 0 is allowed,
                              *   normally meaning the end of the file/stream was encountered.
                              */
         int         errnum; /**< The value of <code>errno</code> after the read/write operation. */
 
-        io_result_t (Connection& c, void* b, size_t s, off_t o, ssize_t r, int e)
+        io_result_t (Connection& c, void* b, size_t s, ssize_t r, int e)
             : conn {c},
               buf {b},
               size {s},
-              offset {o},
               result {r},
               errnum {e}
             {

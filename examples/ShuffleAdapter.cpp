@@ -45,14 +45,14 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t ShuffleAdapter::do_read (void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t ShuffleAdapter::do_read (void* buf, size_t size, int& errnum)
     {
         if (size > rbuf_size) {
             rbuf.reset (new char[size+1]); // Make room for null-termination
             rbuf_size = size;
         }
 
-        auto result = iomultiplex::Adapter::do_read (rbuf.get(), size, offset, errnum);
+        auto result = iomultiplex::Adapter::do_read (rbuf.get(), size, errnum);
         if (result > 0) {
             rbuf.get()[result] = '\0'; // Make sure the tmp buffer is always null-terminated
             strfry (rbuf.get());       // Shuffle: strfry works with null-terminated strings
@@ -64,7 +64,7 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t ShuffleAdapter::do_write (const void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t ShuffleAdapter::do_write (const void* buf, size_t size, int& errnum)
     {
         if (size > wbuf_size) {
             wbuf.reset (new char[size+1]); // Make room for null-termination
@@ -76,7 +76,7 @@ namespace adapter_test {
             strfry (wbuf.get()); // Shuffle: strfry works with null-terminated strings
         }
 
-        return iomultiplex::Adapter::do_write (wbuf.get(), size, offset, errnum);
+        return iomultiplex::Adapter::do_write (wbuf.get(), size, errnum);
     }
 
 

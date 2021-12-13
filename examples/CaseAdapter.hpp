@@ -43,8 +43,8 @@ namespace adapter_test {
                      int new_case=randomcase);
         virtual ~CaseAdapter () = default;
 
-        virtual ssize_t do_read (void* buf, size_t size, off_t offset, int& errnum);
-        virtual ssize_t do_write (const void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_read (void* buf, size_t size, int& errnum);
+        virtual ssize_t do_write (const void* buf, size_t size, int& errnum);
 
     private:
         int mode;

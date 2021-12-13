@@ -55,9 +55,9 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t CaseAdapter::do_read (void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t CaseAdapter::do_read (void* buf, size_t size, int& errnum)
     {
-        auto result = iomultiplex::Adapter::do_read (buf, size, offset, errnum);
+        auto result = iomultiplex::Adapter::do_read (buf, size, errnum);
         if (result > 0) {
             char* ch = (char*) buf;
             for (size_t i=0; i<(size_t)result; ++i) {
@@ -88,7 +88,7 @@ namespace adapter_test {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    ssize_t CaseAdapter::do_write (const void* buf, size_t size, off_t offset, int& errnum)
+    ssize_t CaseAdapter::do_write (const void* buf, size_t size, int& errnum)
     {
         if (size > wbuf_size) {
             wbuf.reset (new char[size]);
@@ -119,7 +119,7 @@ namespace adapter_test {
                 wbuf.get()[i] = ch;
             }
         }
-        return iomultiplex::Adapter::do_write (wbuf.get(), size, offset, errnum);
+        return iomultiplex::Adapter::do_write (wbuf.get(), size, errnum);
     }
 
 

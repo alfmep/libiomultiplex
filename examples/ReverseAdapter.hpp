@@ -36,8 +36,8 @@ namespace adapter_test {
         ReverseAdapter (std::shared_ptr<iomultiplex::Connection> conn_ptr);
         virtual ~ReverseAdapter () = default;
 
-        virtual ssize_t do_read (void* buf, size_t size, off_t offset, int& errnum);
-        virtual ssize_t do_write (const void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_read (void* buf, size_t size, int& errnum);
+        virtual ssize_t do_write (const void* buf, size_t size, int& errnum);
 
     private:
         std::unique_ptr<char> wbuf;

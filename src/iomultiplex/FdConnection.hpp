@@ -110,8 +110,6 @@ namespace iomultiplex {
          * ready to read data.
          * @param buf A pointer to the memory area where data should be stored.
          * @param size The number of bytes to read.
-         * @param offset The offset in the file descriptor where to read.
-         *               <br/><i>Not supported by all types of file descriptors.</i>
          * @param errnum The value of <code>errno</code> after
          *               the read operation. Always 0 if no error occurred.
          * @return The number of bytes that was read.
@@ -119,7 +117,7 @@ namespace iomultiplex {
          *         On error, -1 is returned and parameter <code>errnum</code>
          *         is set to some appropriate value.
          */
-        virtual ssize_t do_read (void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_read (void* buf, size_t size, int& errnum);
 
         /**
          * Do the actual writing to the file descriptor.
@@ -128,8 +126,6 @@ namespace iomultiplex {
          * ready to write data.
          * @param buf A pointer to the memory area that should be written.
          * @param size The number of bytes to write.
-         * @param offset The offset in the file descriptor where to write.
-         *               <br/><i>Not supported by all types of file descriptors.</i>
          * @param errnum The value of <code>errno</code> after
          *               the write operation. Always 0 if no error occurred.
          * @return The number of bytes that was written.
@@ -137,7 +133,7 @@ namespace iomultiplex {
          *         On error, -1 is returned and parameter <code>errnum</code>
          *         is set to some appropriate value.
          */
-        virtual ssize_t do_write (const void* buf, size_t size, off_t offset, int& errnum);
+        virtual ssize_t do_write (const void* buf, size_t size, int& errnum);
 
 
     protected:
