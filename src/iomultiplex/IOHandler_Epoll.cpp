@@ -729,12 +729,19 @@ namespace iomultiplex {
 
             auto ioop = ioop_list->front ();
 
-            if (ioop->dummy_op) {
+            if (error_flags) {
+                // Error condition, setting errno to EIO
+                ioop->result = -1;
+                ioop->errnum = EIO;
+                done = true;
+            }
+            else if (ioop->dummy_op) {
                 // Dummy operation, don't read or write anything
                 ioop->result = 0;
                 ioop->errnum = 0;
                 done = true;
-            }else{
+            }
+            else{
                 // Read or write using the connection object
                 if (read)
                     ioop->result = ioop->conn.do_read (ioop->buf, ioop->size, ioop->errnum);
