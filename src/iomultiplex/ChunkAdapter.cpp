@@ -165,7 +165,7 @@ namespace iomultiplex {
                                      ior.size = tot_size;
                                      ior.result = num_chunks;
                                      ior.errnum = 0;
-                                     rx_cb (ior);
+                                     return rx_cb (ior);
                                  }, timeout);
                 }
                 return 0;
@@ -279,14 +279,14 @@ namespace iomultiplex {
             cur_size += (size_t) ior.result;
             return Adapter::write (((char*)buf)+cur_size,
                                    tot_size-cur_size,
-                                   [this, buf, tot_size, cur_size, chunk_size, tx_cb, timeout](io_result_t& ior)->bool
+                                   [this, buf, tot_size, cur_size, chunk_size, io_cb, timeout](io_result_t& ior)->bool
                                    {
                                        return chunk_tx_cb(ior,
                                                           buf,
                                                           tot_size,
                                                           cur_size,
                                                           chunk_size,
-                                                          tx_cb,
+                                                          io_cb,
                                                           timeout);
                                    },
                                    timeout);
