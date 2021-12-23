@@ -54,6 +54,7 @@ libiomultiplex_la_SOURCES += iomultiplex/TimerConnection.cpp
 libiomultiplex_la_SOURCES += iomultiplex/SocketConnection.cpp
 libiomultiplex_la_SOURCES += iomultiplex/TimerSet.cpp
 libiomultiplex_la_SOURCES += iomultiplex/Adapter.cpp
+libiomultiplex_la_SOURCES += iomultiplex/ChunkAdapter.cpp
 
 # Header files
 libiomultiplexdir = $(includedir)
@@ -82,6 +83,7 @@ nobase_libiomultiplex_HEADERS += iomultiplex/TimerConnection.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/SocketConnection.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/TimerSet.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/Adapter.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/ChunkAdapter.hpp
 
 # Header files that is not to be installed
 noinst_HEADERS =

@@ -48,6 +48,7 @@ namespace iomultiplex {
 #include <iomultiplex/SocketConnection.hpp>
 #include <iomultiplex/TimerSet.hpp>
 #include <iomultiplex/Adapter.hpp>
+#include <iomultiplex/ChunkAdapter.hpp>
 #include <iomultiplex/utils.hpp>
 
 
