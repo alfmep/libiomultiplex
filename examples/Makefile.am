@@ -35,6 +35,9 @@ echo_server_SOURCES  = echo-server.cpp
 noinst_bin_PROGRAMS += echo-client
 echo_client_SOURCES  = echo-client.cpp
 
+noinst_bin_PROGRAMS  += beacon-server
+beacon_server_SOURCES = beacon-server.cpp
+
 noinst_bin_PROGRAMS  += adapter-test
 adapter_test_SOURCES  = adapter-test.cpp
 adapter_test_SOURCES += ObfuscateAdapter.cpp
