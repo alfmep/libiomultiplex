@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -65,6 +65,57 @@ REQUIRE_IN_PC_FILE=
 #
 PREDEFINED_IN_DOXYGEN=
 
+#
+# Header files excluded from doxygen
+#
+EXCLUDE_FROM_DOXYGEN=
+
+#
+# Include statement for class TlsAdapter
+#
+TLS_ADAPTER_HEADER_FILES=
+
+
+#
+# Give the user an option to disable OpenSSL (class TlsAdapter)
+#
+AC_ARG_ENABLE([openssl],
+	[AS_HELP_STRING([--disable-openssl],
+	[don't enable support for TLS [default=auto]])])
+AM_CONDITIONAL([ENABLE_OPENSSL_SET], [test "x$enable_openssl" != "xno"])
+
+AM_COND_IF([ENABLE_OPENSSL_SET],
+	[
+		#
+		# Check for OpenSSL
+		#
+		PKG_CHECK_MODULES([openssl],
+			[openssl],
+			[
+				REQUIRE_IN_PC_FILE+=" openssl"
+				AM_CONDITIONAL([HAVE_OPENSSL], true)
+				TLS_ADAPTER_HEADER_FILES="#include <iomultiplex/TlsConfig.hpp>
+#include <iomultiplex/TlsAdapter.hpp>"
+			],
+			[
+				AC_MSG_WARN(Could not find openssl - libiomultiplex will not have class TlsAdapter);
+				AM_CONDITIONAL([HAVE_OPENSSL], false)
+				TLS_ADAPTER_HEADER_FILES=""
+				EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsConfig.hpp"
+				EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsAdapter.hpp"
+			])
+	],
+	[
+		AC_MSG_NOTICE(OpenSSL disabled - libiomultiplex will not have class TlsAdapter)
+		AM_CONDITIONAL([HAVE_OPENSSL], false)
+		TLS_ADAPTER_HEADER_FILES=""
+		EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsConfig.hpp"
+		EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsAdapter.hpp"
+	]
+)
+AC_SUBST([openssl_CFLAGS])
+AC_SUBST([openssl_LIBS])
+
 
 #
 # Give the user an option to not build example applications
@@ -82,6 +133,8 @@ AM_CONDITIONAL([ENABLE_EXAMPLES_SET], [test "x$enable_examples" != "xno"])
 AC_SUBST([LIBS_IN_PC_FILE])
 AC_SUBST([REQUIRE_IN_PC_FILE])
 AC_SUBST([PREDEFINED_IN_DOXYGEN])
+AC_SUBST([EXCLUDE_FROM_DOXYGEN])
+AC_SUBST([TLS_ADAPTER_HEADER_FILES])
 
 
 #
@@ -116,6 +169,7 @@ AM_COND_IF([ENABLE_DOXYGEN_SET],
 AC_OUTPUT([
 	Makefile
 	src/Makefile
+	src/iomultiplex.hpp
 	src/iomultiplex.pc
 	examples/Makefile
 	doc/Makefile
@@ -130,6 +184,10 @@ AC_MSG_NOTICE([])
 AC_MSG_NOTICE([ Configuration summary:])
 AC_MSG_NOTICE([])
 AC_MSG_NOTICE([ Installation prefix.................. ${prefix}])
+AM_COND_IF([HAVE_OPENSSL],
+	[AC_MSG_NOTICE([ OpenSSL enabled...................... yes])],
+	[AC_MSG_NOTICE([ OpenSSL enabled...................... no (libiomultiplex will not have class TlsAdapter)])]
+)
 AM_COND_IF([ENABLE_EXAMPLES_SET],
 	[AC_MSG_NOTICE([ Build example applications........... yes (example applications are not installed)])],
 	[AC_MSG_NOTICE([ Build example applications........... no])]

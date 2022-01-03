@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -22,6 +22,11 @@ AM_CPPFLAGS = -I$(srcdir) -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${loc
 AM_LDFLAGS = -pthread -lresolv
 AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread
 AM_LDFLAGS += -version-info @LIBRARY_VERSION@
+
+if HAVE_OPENSSL
+AM_CXXFLAGS += $(openssl_CFLAGS)
+AM_LDFLAGS += $(openssl_LIBS)
+endif
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = iomultiplex.pc
@@ -55,6 +60,9 @@ libiomultiplex_la_SOURCES += iomultiplex/SocketConnection.cpp
 libiomultiplex_la_SOURCES += iomultiplex/TimerSet.cpp
 libiomultiplex_la_SOURCES += iomultiplex/Adapter.cpp
 libiomultiplex_la_SOURCES += iomultiplex/ChunkAdapter.cpp
+if HAVE_OPENSSL
+libiomultiplex_la_SOURCES += iomultiplex/TlsAdapter.cpp
+endif
 
 # Header files
 libiomultiplexdir = $(includedir)
@@ -84,6 +92,10 @@ nobase_libiomultiplex_HEADERS += iomultiplex/SocketConnection.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/TimerSet.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/Adapter.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/ChunkAdapter.hpp
+if HAVE_OPENSSL
+nobase_libiomultiplex_HEADERS += iomultiplex/TlsConfig.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/TlsAdapter.hpp
+endif
 
 # Header files that is not to be installed
 noinst_HEADERS =

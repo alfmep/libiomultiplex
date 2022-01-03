@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -24,6 +24,11 @@ AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread
 AM_LDFLAGS = -pthread -lresolv
 
 LDADD = -L../src -liomultiplex
+
+if HAVE_OPENSSL
+AM_CXXFLAGS += $(openssl_CFLAGS)
+AM_LDFLAGS += $(openssl_LIBS)
+endif
 
 
 noinst_bindir =
