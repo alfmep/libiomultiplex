@@ -728,6 +728,7 @@ namespace iomultiplex {
         bool done {false};
         TRACE ("File descriptor %d have %d %s operation(s)", fd, ioop_list->size(), (read?"input":"output"));
         while (!quit && !done && !ioop_list->empty()) {
+            TRACE ("Handle %s operation on %d", (read?"input":"output"), fd);
 
             auto ioop = ioop_list->front ();
 
@@ -742,7 +743,6 @@ namespace iomultiplex {
                 // Dummy operation, don't read or write anything
                 ioop->result = 0;
                 ioop->errnum = 0;
-                done = true;
             }
             else{
                 // Read or write using the connection object
@@ -752,6 +752,9 @@ namespace iomultiplex {
                     ioop->result = ioop->conn.do_write (ioop->buf, ioop->size, ioop->errnum);
                 if (ioop->result < 0)
                     done = true;
+                TRACE ("Result of %s operation on %d: %ld %s",
+                       (read?"input":"output"), fd, ioop->result,
+                       (ioop->result<0?strerror(ioop->errnum):""));
             }
 
             if (ioop->errnum == EAGAIN) {
