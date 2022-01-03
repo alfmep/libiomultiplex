@@ -30,7 +30,7 @@ namespace iomultiplex {
     UxAddr::UxAddr ()
     {
         memset (&sa, 0, sizeof(sa));
-        ((struct sockaddr_un&)sa).sun_family = AF_INET;
+        ((struct sockaddr_un&)sa).sun_family = AF_UNIX;
     }
 
 
