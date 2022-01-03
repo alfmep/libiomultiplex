@@ -32,6 +32,8 @@
 #include <syscall.h>
 #include <sys/timerfd.h>
 #include <sys/epoll.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 
 //#define TRACE_DEBUG
@@ -730,9 +732,10 @@ namespace iomultiplex {
             auto ioop = ioop_list->front ();
 
             if (error_flags) {
-                // Error condition, setting errno to EIO
-                ioop->result = -1;
-                ioop->errnum = EIO;
+                socklen_t len = sizeof (ioop->errnum);
+                if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void *)&ioop->errnum, &len))
+                    ioop->errnum = EIO;
+                ioop->result = ioop->errnum ? -1 : 0;
                 done = true;
             }
             else if (ioop->dummy_op) {
