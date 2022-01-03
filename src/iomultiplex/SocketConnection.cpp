@@ -67,7 +67,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     const std::string sock_type_to_string (const int type)
     {
-        switch (type) {
+        switch (type & ~(SOCK_NONBLOCK|SOCK_CLOEXEC)) {
         case 0:
             return "any";
         case SOCK_STREAM:
@@ -238,9 +238,10 @@ namespace iomultiplex {
                 errno = ENOPROTOOPT;
                 return -1;
             }
-            TRACE ("Open socket, domain: %s, sock_type %s",
+            TRACE ("Open socket, domain: %s, type: %s, protocol: %s",
                    sock_family_to_string(domain).c_str(),
-                   sock_proto_to_string(type).c_str());
+                   sock_type_to_string(type).c_str(),
+                   sock_proto_to_string(proto).c_str());
             type |= cloexec ? SOCK_NONBLOCK|SOCK_CLOEXEC : SOCK_NONBLOCK;
             fd = socket (domain, type, proto);
             if (fd == -1) {
