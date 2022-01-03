@@ -71,13 +71,6 @@ namespace iomultiplex {
         IpAddr (uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint16_t port_num=0);
 
         /**
-         * Create an IPv6 address.
-         * @param ipv6_addr An IPv6 address contained in 8 16-bit numbers in host byte order.
-         * @param port_num A port number in host byte order.
-         */
-        explicit IpAddr (const std::array<uint16_t, 8>& ipv6_addr, uint16_t port_num=0);
-
-        /**
          * Create an IPv6 address in format <code>a0:a1:a2:a3:a4:a5:a6:a7</code>,
          * all parts are in host byte order.
          * @param port_num A port number in host byte order.
@@ -91,6 +84,21 @@ namespace iomultiplex {
                 uint16_t a6,
                 uint16_t a7,
                 uint16_t port_num=0);
+
+        /**
+         * Parse a string and Create an IP address:port.
+         * @param address A string containing an IPv[4|6] address and optionally a port number.
+         * @throw std::system_error on parse error.
+         */
+        explicit IpAddr (const std::string& address);
+
+        /**
+         * Parse a string and Create an IP address.
+         * @param address A string containing an IPv[4|6] address.
+         * @param port_num A port number.
+         * @throw std::system_error on parse error.
+         */
+        explicit IpAddr (const std::string& address, uint16_t port_num);
 
         /**
          * Destructor.

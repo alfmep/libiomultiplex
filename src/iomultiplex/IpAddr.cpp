@@ -17,9 +17,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iomultiplex/IpAddr.hpp>
+#include <stdexcept>
 #include <sstream>
 #include <iomanip>
 #include <cstring>
+#include <cerrno>
 #include <regex>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -33,7 +35,7 @@ namespace iomultiplex {
 
 
     const IpAddr IPv4Addr_any (0, 0);
-    const IpAddr IPv6Addr_any ({0,0,0,0,0,0,0,0}, 0);
+    const IpAddr IPv6Addr_any (0,0,0,0,0,0,0,0, 0);
 
 
     //--------------------------------------------------------------------------
@@ -100,16 +102,6 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    IpAddr::IpAddr (const std::array<uint16_t, 8>& ipv6_addr, uint16_t port_num)
-    {
-        memset (&sa, 0, sizeof(sa));
-        ipv6 (ipv6_addr);
-        port (port_num);
-    }
-
-
-    //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
     IpAddr::IpAddr (uint16_t a0,
                     uint16_t a1,
                     uint16_t a2,
@@ -131,6 +123,27 @@ namespace iomultiplex {
         addr[6] = a6;
         addr[7] = a7;
         ipv6 (addr);
+        port (port_num);
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    IpAddr::IpAddr (const std::string& address)
+    {
+        memset (&sa, 0, sizeof(sa));
+        if (!parse(address))
+            throw std::system_error (EINVAL, std::system_category());
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    IpAddr::IpAddr (const std::string& address, uint16_t port_num)
+    {
+        memset (&sa, 0, sizeof(sa));
+        if (!parse(address))
+            throw std::system_error (EINVAL, std::system_category());
         port (port_num);
     }
 
@@ -223,8 +236,7 @@ namespace iomultiplex {
     {
         // Regular expression to validate a port number
         static std::regex regex_port_num ("0*(?:"
-                                          "[0-9]|"
-                                          "[1-9][0-9]{1,3}|"
+                                          "[1-9][0-9]{0,3}|"
                                           "[1-5][0-9]{4}|"
                                           "6[0-4][0-9]{3}|"
                                           "65[0-4]{2}|"
@@ -278,6 +290,9 @@ namespace iomultiplex {
             }
         }
 
+        auto orig_port = port ();
+        memset (&sa, 0, sizeof(sa));
+
         const std::string& addr = ip_str.empty() ? address : ip_str;
         struct in_addr  ipv4addr;
         struct in6_addr ipv6addr;
@@ -292,8 +307,10 @@ namespace iomultiplex {
             ((struct sockaddr_in6&)sa).sin6_addr = ipv6addr;
             success = true;
         }
-        if (success && port_num != -1)
+        if (success && also_parse_port && port_num != -1)
             port ((uint16_t)port_num);
+        else
+            port (orig_port);
 
         return success;
     }
