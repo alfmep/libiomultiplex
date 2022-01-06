@@ -67,8 +67,8 @@
 #ifdef RX_LIST
 #  undef RX_LIST
 #endif
-#  ifdef TX_LIST
-#undef TX_LIST
+#ifdef TX_LIST
+#  undef TX_LIST
 #endif
 #define RX_LIST second.first
 #define TX_LIST second.second
@@ -76,6 +76,11 @@
 
 
 namespace iomultiplex {
+
+
+    constexpr static pid_t invalid_pid = (pid_t) -1;
+
+    __thread pid_t IOHandler_Epoll::caller_pid {invalid_pid};
 
 
 #ifdef TRACE_DEBUG
@@ -205,9 +210,10 @@ namespace iomultiplex {
         : ctl_fd {-1},
           ctl_signal {signal_num},
           quit {true},
-          my_pid {0},
+          worker_pid {invalid_pid},
           state {state_t::stopped},
-          fd_map_entry_removed {std::make_pair(-1, false)}
+          fd_map_entry_removed {std::make_pair(-1, false)},
+          currently_handled_fd {-1}
     {
         // Block signal 'ctl_signal'
         sigset_t ctl_sigset;
@@ -290,18 +296,18 @@ namespace iomultiplex {
             }
             state = state_t::stopped;
             worker = std::thread ([this](){
-                    // Run this method in another thread
+                    // Run this method in a new worker thread
                     run (false);
                 });
 
             ops_mutex.unlock ();
-            while (my_pid == 0)
+            while (worker_pid == invalid_pid)
                 ; // Busy-wait until the thread has started
             errno = 0;
-            return 1; // Starting I/O handler in a new thread
+            return 1; // Started I/O handler in a worker thread
         }
 
-        return 0; // Starting I/O handler in this thread
+        return 0; // Started I/O handler in this thread
     }
 
 
@@ -316,7 +322,7 @@ namespace iomultiplex {
 
         quit = false;
         state = state_t::running;
-        my_pid = (pid_t) syscall (SYS_gettid);
+        worker_pid = (pid_t) syscall (SYS_gettid);
 
         TRACE ("Start processing I/O");
 
@@ -350,11 +356,12 @@ namespace iomultiplex {
                     quit = true;
                     TRACE ("IOHandler_Epoll: error polling I/O: %s", strerror(errnum));
                 }
-            }else{
-                if (num_events > 0)
-                    io_dispatch (events, num_events);
-                if (timeout>-1 && !timeout_map.empty())
-                    handle_timeout (ts);
+            }
+            else if (num_events > 0) {
+                io_dispatch (events, num_events);
+            }
+            else if (!timeout_map.empty()) {
+                handle_timeout (ts);
             }
         }
         state = state_t::stopping;
@@ -362,7 +369,7 @@ namespace iomultiplex {
         // clean up
         end_running ();
         TRACE ("Finished processing I/O ");
-        my_pid = 0;
+        worker_pid = invalid_pid;
         errno = errnum;
         state = state_t::stopped;
         return errno==0 ? 0 : -1;
@@ -409,10 +416,10 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void IOHandler_Epoll::signal_event ()
     {
-        if (my_pid!=0 && my_pid != (pid_t)syscall(SYS_gettid)) {
-            TRACE_SIG ("Send signal %d to thread id %u", ctl_signal, (unsigned)my_pid);
+        if (worker_pid != invalid_pid) {
+            TRACE_SIG ("Send signal %d to thread id %u", ctl_signal, (unsigned)worker_pid);
             pid_t tgid = getpid ();
-            int err = syscall (SYS_tgkill, tgid, my_pid, ctl_signal);
+            int err = syscall (SYS_tgkill, tgid, worker_pid, ctl_signal);
             if (err)
                 Log::info ("IOHandler_Epoll: Unable to raise command signal: %s", strerror(err));
         }
@@ -425,7 +432,8 @@ namespace iomultiplex {
     {
         if (!quit.exchange(true)) {
             TRACE ("Quitting I/O handling");
-            signal_event ();
+            if (!same_context())
+                signal_event ();
         }
     }
 
@@ -434,7 +442,10 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     bool IOHandler_Epoll::same_context () const
     {
-        return !my_pid  ||  my_pid == (pid_t)syscall(SYS_gettid);
+        if (caller_pid == invalid_pid)
+            caller_pid = (pid_t) syscall (SYS_gettid);
+
+        return worker_pid == invalid_pid  ||  worker_pid == caller_pid;
     }
 
 
@@ -475,6 +486,7 @@ namespace iomultiplex {
         std::shared_ptr<ioop_t> ioop (std::make_shared<ioop_t>(
                                               timeout_map, read, conn, buf, size,
                                               cb, timeout, dummy_operation));
+
         bool send_signal {false};
 
         auto entry = ops_map.find (fd);
@@ -482,22 +494,26 @@ namespace iomultiplex {
             entry = ops_map.emplace (fd, std::make_pair(ioop_list_t(),         // Rx list
                                                         ioop_list_t())).first; // Tx list
 
-        auto& op_list    {read ? entry->RX_LIST : entry->TX_LIST};
-        auto& other_list {read ? entry->TX_LIST : entry->RX_LIST};
-        if (op_list.empty()) {
-            int op;
-            struct epoll_event event;
-            event.data.fd = fd;
-            if (other_list.empty()) {
-                op = EPOLL_CTL_ADD;
-                event.events = read ? EPOLLIN : EPOLLOUT;
-            }else{
-                op = EPOLL_CTL_MOD;
-                event.events = EPOLLIN | EPOLLOUT;
+        auto& op_list {read ? entry->RX_LIST : entry->TX_LIST};
+
+        bool is_same_context = same_context ();
+        if (fd!=currently_handled_fd || !is_same_context || state!=state_t::running) {
+            if (op_list.empty()) {
+                auto& other_op_list {read ? entry->TX_LIST : entry->RX_LIST};
+                int op;
+                struct epoll_event event;
+                event.data.fd = fd;
+                if (other_op_list.empty()) {
+                    op = EPOLL_CTL_ADD;
+                    event.events = read ? EPOLLIN : EPOLLOUT;
+                }else{
+                    op = EPOLL_CTL_MOD;
+                    event.events = EPOLLIN | EPOLLOUT;
+                }
+                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                            epoll_op_to_string(op).c_str(), fd, events_to_string(event.events).c_str());
+                epoll_ctl (ctl_fd, op, fd, &event);
             }
-            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                        epoll_op_to_string(op).c_str(), fd, events_to_string(event.events).c_str());
-            epoll_ctl (ctl_fd, op, fd, &event);
             if (timeout != (unsigned)-1) {
                 //
                 // TODO: Optimize to only re-calculate timeout if new timeout is shorter than current
@@ -513,7 +529,7 @@ namespace iomultiplex {
         ioop->ioop_list_pos = op_list.end ();
         --ioop->ioop_list_pos;
 
-        if (send_signal)
+        if (send_signal && !is_same_context)
             signal_event ();
 
         errno = 0;
@@ -648,8 +664,13 @@ namespace iomultiplex {
             fd_ops_map_t::iterator ops_map_pos = ioop.ops_map_pos;
             ioop_list_t::iterator op_list_pos = ioop.ioop_list_pos;
             ioop_list_t& op_list = is_rx ? ops_map_pos->RX_LIST : ops_map_pos->TX_LIST;
-            ioop_list_t& other_op_list = is_rx ? ops_map_pos->TX_LIST : ops_map_pos->RX_LIST;
+
             int fd = ops_map_pos->first;
+            uint32_t current_epoll_events = 0;
+            if (!ops_map_pos->RX_LIST.empty())
+                current_epoll_events = EPOLLIN;
+            if (!ops_map_pos->TX_LIST.empty())
+                current_epoll_events |= EPOLLOUT;
 
 #ifdef TRACE_DEBUG_MISC
             auto diff = now - deadline;
@@ -657,9 +678,32 @@ namespace iomultiplex {
                    (is_rx?"Rx":"Tx"), fd,
                    diff.tv_sec, diff.tv_nsec);
 #endif
+
             op_list.erase (op_list_pos);
-            if (op_list.empty()) {
-                if (other_op_list.empty()) {
+            if (ops_map_pos->RX_LIST.empty() && ops_map_pos->TX_LIST.empty())
+                ops_map.erase (ops_map_pos);
+
+            currently_handled_fd = fd;
+            if (callback) {
+                // Call the callback
+                ops_mutex.unlock ();
+                callback (result);
+                ops_mutex.lock ();
+            }
+            currently_handled_fd = -1;
+
+            // Update epoll events, if needed
+            //
+            uint32_t new_epoll_events = 0;
+            auto ops_map_entry = ops_map.find (fd);
+            if (ops_map_entry != ops_map.end()) {
+                if (!ops_map_entry->RX_LIST.empty())
+                    new_epoll_events = EPOLLIN;
+                if (!ops_map_entry->TX_LIST.empty())
+                    new_epoll_events |= EPOLLOUT;
+            }
+            if (new_epoll_events != current_epoll_events) {
+                if (new_epoll_events == 0) {
                     // No more TX/RX operations
                     TRACE_POLL ("epoll_ctl (%s, %d, %s)",
                                 epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
@@ -667,21 +711,11 @@ namespace iomultiplex {
                 }else{
                     struct epoll_event event;
                     event.data.fd = fd;
-                    event.events = is_rx ? EPOLLOUT : EPOLLIN;
+                    event.events = new_epoll_events;
                     TRACE_POLL ("epoll_ctl (%s, %d, %s)",
                                 epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
                     epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
                 }
-            }
-
-            if (ops_map_pos->RX_LIST.empty() && ops_map_pos->TX_LIST.empty())
-                ops_map.erase (ops_map_pos);
-
-            if (callback) {
-                // Call the callback
-                ops_mutex.unlock ();
-                callback (result);
-                ops_mutex.lock ();
             }
         }
     }
@@ -703,11 +737,13 @@ namespace iomultiplex {
             TRACE ("Events on file desc %d: 0x%08x (%s)",
                    fd, events, events_to_string(events).c_str());
 
+            currently_handled_fd = fd;
             uint32_t err = events & (EPOLLERR|EPOLLHUP);
             if (events & (EPOLLOUT|EPOLLHUP|EPOLLERR))
                 handle_event (fd, false, err);
             if (events & (EPOLLIN|EPOLLHUP|EPOLLERR))
                 handle_event (fd, true, err);
+            currently_handled_fd = -1;
         }
     }
 
@@ -723,8 +759,13 @@ namespace iomultiplex {
         if (entry == ops_map.end())
             return;
 
+        uint32_t current_epoll_events = 0;
+        if (!entry->RX_LIST.empty())
+            current_epoll_events = EPOLLIN;
+        if (!entry->TX_LIST.empty())
+            current_epoll_events |= EPOLLOUT;
+
         auto* ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
-        auto* other_ioop_list = read ? &(entry->TX_LIST) : &(entry->RX_LIST);
         bool done {false};
         TRACE ("File descriptor %d have %d %s operation(s)", fd, ioop_list->size(), (read?"input":"output"));
         while (!quit && !done && !ioop_list->empty()) {
@@ -766,23 +807,6 @@ namespace iomultiplex {
 
             ioop_list->pop_front ();
 
-            // Update poll set if needed
-            if (ioop_list->empty()) {
-                if (other_ioop_list->empty()) {
-                    // No more TX/RX operations
-                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                                epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
-                    epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
-                }else{
-                    struct epoll_event event;
-                    event.data.fd = fd;
-                    event.events = read ? EPOLLOUT : EPOLLIN;
-                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                                epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
-                    epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
-                }
-            }
-
             if (ioop->cb == nullptr) {
                 done = true;
             }else{
@@ -800,10 +824,8 @@ namespace iomultiplex {
                     entry = ops_map.find (fd);
                     if (entry != ops_map.end()) {
                         ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
-                        other_ioop_list = read ? &(entry->TX_LIST) : &(entry->RX_LIST);
                     }else{
                         ioop_list = nullptr;
-                        other_ioop_list = nullptr;
                         done = true;
                     }
                 }
@@ -811,9 +833,32 @@ namespace iomultiplex {
             }
         }
 
-        if (entry != ops_map.end())
-            if (entry->RX_LIST.empty() && entry->TX_LIST.empty())
+        uint32_t new_epoll_events = 0;
+
+        if (entry != ops_map.end()) {
+            if (!entry->RX_LIST.empty())
+                new_epoll_events = EPOLLIN;
+            if (!entry->TX_LIST.empty())
+                new_epoll_events |= EPOLLOUT;
+
+            if (new_epoll_events == 0)
                 ops_map.erase (entry);
+        }
+        if (new_epoll_events != current_epoll_events) {
+            if (new_epoll_events == 0) {
+                // No more TX/RX operations
+                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                            epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
+                epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+            }else{
+                struct epoll_event event;
+                event.data.fd = fd;
+                event.events = new_epoll_events;
+                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                            epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
+                epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
+            }
+        }
     }
 
 

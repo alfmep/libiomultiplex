@@ -129,7 +129,8 @@ namespace iomultiplex {
         int ctl_fd;
         int ctl_signal;
         std::atomic_bool quit;
-        volatile pid_t my_pid;
+        volatile pid_t worker_pid;
+        static __thread pid_t caller_pid;
         state_t state;
 
         sigset_t orig_sigmask;    // Original signal mask before this object was created
@@ -140,6 +141,7 @@ namespace iomultiplex {
         std::pair<int, bool> fd_map_entry_removed;
 
         std::thread worker;
+        int currently_handled_fd;
 
         timeout_map_t timeout_map;
         int next_timeout ();
