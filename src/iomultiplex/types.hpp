@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -49,7 +49,7 @@ namespace iomultiplex {
          * @param rhs The <code>struct timespec</code> on the right hand side of the comparison.
          * @return <code>true</code> if <code>lhs</code> is less than <code>rhs</code>.
          */
-        bool operator() (const struct timespec& lhs, const struct timespec& rhs) {
+        bool operator() (const struct timespec& lhs, const struct timespec& rhs) const {
             if (lhs.tv_sec != rhs.tv_sec)
                 return lhs.tv_sec < rhs.tv_sec;
             else
