@@ -748,10 +748,10 @@ namespace iomultiplex {
     {
         int optval;
         socklen_t optlen = sizeof (optval);
-        if (::getsockopt(handle(), SOL_SOCKET, optname, &optval, &optlen) != 0)
-            return optval;
-        else
+        if (::getsockopt(handle(), SOL_SOCKET, optname, &optval, &optlen))
             return -1;
+        else
+            return optval;
     }
 
 
@@ -761,10 +761,10 @@ namespace iomultiplex {
     {
         int optval;
         socklen_t optlen = sizeof (optval);
-        if (::getsockopt(handle(), level, optname, &optval, &optlen) != 0)
-            return optval;
-        else
+        if (::getsockopt(handle(), level, optname, &optval, &optlen))
             return -1;
+        else
+            return optval;
     }
 
 
