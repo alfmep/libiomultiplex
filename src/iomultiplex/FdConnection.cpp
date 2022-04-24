@@ -123,7 +123,8 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void FdConnection::cancel (bool cancel_rx, bool cancel_tx)
     {
-        ioh->cancel (*this, cancel_rx, cancel_tx);
+        if (ioh)
+            ioh->cancel (*this, cancel_rx, cancel_tx);
     }
 
 
