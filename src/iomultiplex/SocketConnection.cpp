@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -233,6 +233,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int SocketConnection::open (int domain, int type, int proto, bool cloexec)
     {
+        errno = 0;
         if (handle() == -1) {
             if (proto==-1) {
                 errno = ENOPROTOOPT;
@@ -295,6 +296,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int SocketConnection::bind (const SockAddr& addr)
     {
+        errno = 0;
         // Sanity checks
         //
         if (handle() < 0) {
@@ -360,6 +362,7 @@ namespace iomultiplex {
         }
 
         TRACE ("Connect socket %d to %s", handle(), addr.to_string().c_str());
+        errno = 0;
 
         // Initiate the connection
         auto result = ::connect (handle(), addr.data(), addr.size());
@@ -416,6 +419,7 @@ namespace iomultiplex {
         bool io_done = false;
         int errnum = 0;
         int retval = -1;
+        errno = 0;
         // Initiate connection
         if (connect(addr,
                     [this, &errnum, &io_done](SocketConnection& conn, int err){
@@ -462,7 +466,7 @@ namespace iomultiplex {
             errno = EINVAL;
             return -1;
         }
-
+        errno = 0;
         TRACE ("Set socket %d to listen state", handle());
         auto result = ::listen (handle(), backlog);
         if (result) {
@@ -485,6 +489,7 @@ namespace iomultiplex {
         }
 
         TRACE ("Accept connections to socket %d", handle());
+        errno = 0;
 
         // Wait until we have incoming data before we make the
         // call to accept().
@@ -547,6 +552,7 @@ namespace iomultiplex {
             errno = EDEADLK;
             return client;
         }
+        errno = 0;
 
         // Start accepting connections
         if (accept([this, &errnum, &io_done, &client](SocketConnection& s, std::shared_ptr<SocketConnection> c, int err){
@@ -579,6 +585,7 @@ namespace iomultiplex {
             errno = EINVAL;
             return -1;
         }
+        errno = 0;
         return wait_for_rx ([this, buf, size, rx_cb](io_result_t& ior)->bool{
                 auto peer = local_addr->clone ();
                 peer->clear ();
@@ -591,12 +598,11 @@ namespace iomultiplex {
                                  size,
                                  ior.result,
                                  ior.errnum);
-                bool retval = false;
                 if (rx_cb)
-                    retval = rx_cb (res, *peer);
+                    rx_cb (*this, res, *peer);
                 else if (def_sock_rx_cb)
-                    retval = def_sock_rx_cb (res, *peer);
-                return retval;
+                    def_sock_rx_cb (*this, res, *peer);
+                return false;
             },
             timeout);
     }
@@ -618,11 +624,15 @@ namespace iomultiplex {
             errno = EDEADLK;
             return peer;
         }
+        errno = 0;
 
         // Queue a read operation
         if (recvfrom(buf,
                      (size_t)size,
-                     [this, &size, &io_done, &errnum, &peer](io_result_t& ior, const SockAddr& pa)->bool{
+                     [this, &size, &io_done, &errnum, &peer](SocketConnection& sock,
+                                                             io_result_t& ior,
+                                                             const SockAddr& pa)
+                     {
                          std::unique_lock<std::mutex> lock (sync_mutex);
                          io_done = true;
                          errnum = ior.errnum;
@@ -630,7 +640,6 @@ namespace iomultiplex {
                          if (!errnum)
                              peer = pa.clone();
                          sync_cond.notify_one ();
-                         return false;
                      },
                      timeout) == 0)
         {
@@ -664,6 +673,7 @@ namespace iomultiplex {
             return -1;
         }
 
+        errno = 0;
         return wait_for_tx ([this, buf, size, addr=peer.clone(), tx_cb](io_result_t& ior)->bool{
                 ssize_t result = do_sendto (buf, size, 0, *addr);
                 if (result>=0 && local_addr->size()==0) {
@@ -678,12 +688,11 @@ namespace iomultiplex {
                                  size,
                                  result,
                                  errno<0 ? errno : 0);
-                bool retval = false;
                 if (tx_cb)
-                    retval = tx_cb (res, *addr);
+                    tx_cb (*this, res, *addr);
                 else if (def_sock_tx_cb)
-                    retval = def_sock_tx_cb (res, *addr);
-                return retval;
+                    def_sock_tx_cb (*this, res, *addr);
+                return false;
             },
             timeout);
     }
@@ -702,17 +711,21 @@ namespace iomultiplex {
         ssize_t result = -1;
         bool io_done = false;
         int errnum = 0;
+        errno = 0;
+
         // Queue a send operation
         if (sendto(buf,
                    size,
                    peer,
-                   [this, &result, &io_done, &errnum](io_result_t& ior, const SockAddr& peer)->bool{
+                   [this, &result, &io_done, &errnum](SocketConnection& sock,
+                                                      io_result_t& ior,
+                                                      const SockAddr& peer)
+                   {
                        std::unique_lock<std::mutex> lock (sync_mutex);
                        result = ior.result;
                        errnum = ior.errnum;
                        io_done = true;
                        sync_cond.notify_one ();
-                       return false;
                    },
                    timeout) == 0)
         {
@@ -789,6 +802,7 @@ namespace iomultiplex {
     int SocketConnection::setsockopt (int optname, const int value)
     {
         socklen_t len = sizeof (value);
+        errno = 0;
         return ::setsockopt (handle(), SOL_SOCKET, optname, &value, len);
     }
 
@@ -798,6 +812,7 @@ namespace iomultiplex {
     int SocketConnection::setsockopt (int level, int optname, const int value)
     {
         socklen_t len = sizeof (value);
+        errno = 0;
         return ::setsockopt (handle(), level, optname, &value, len);
     }
 
@@ -806,6 +821,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int SocketConnection::setsockopt (int optname, const void* optval, socklen_t optlen)
     {
+        errno = 0;
         return ::setsockopt (handle(), SOL_SOCKET, optname, optval, optlen);
     }
 
@@ -814,6 +830,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int SocketConnection::setsockopt (int level, int optname, const void* optval, socklen_t optlen)
     {
+        errno = 0;
         return ::setsockopt (handle(), level, optname, optval, optlen);
     }
 

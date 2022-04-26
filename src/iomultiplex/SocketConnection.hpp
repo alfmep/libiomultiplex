@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -66,12 +66,13 @@ namespace iomultiplex {
 
         /**
          * Socket I/O callback.
+         * @param sock The socket that performed sendto/recvfrom.
          * @param ior I/O operation result.
          * @param peer_addr The address of the peer we are receiving from or sendig to.
-         * @return <code>true</code> if the iohandler_base should continue to try handling
-         *         I/O operations on this connection before waiting for new events.
          */
-        using peer_io_callback_t = std::function<bool (io_result_t& ior, const SockAddr& peer_addr)>;
+        using peer_io_callback_t = std::function<void (SocketConnection& sock,
+                                                       io_result_t& ior,
+                                                       const SockAddr& peer_addr)>;
 
         /**
          * Constructor.
