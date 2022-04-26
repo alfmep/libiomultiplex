@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -69,9 +69,34 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    TimerSet::TimerSet (TimerSet&& ts)
+        : timer (std::move(ts.timer)),
+          next_id (ts.next_id),
+          times (std::move(ts.times))
+    {
+        ts.next_id = -1;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     TimerSet::~TimerSet ()
     {
         clear ();
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    TimerSet& TimerSet::operator= (TimerSet&& rhs)
+    {
+        if (this != &rhs) {
+            timer = std::move (rhs.timer);
+            next_id = rhs.next_id;
+            times = std::move (rhs.times);
+            rhs.next_id = -1;
+        }
+        return *this;
     }
 
 

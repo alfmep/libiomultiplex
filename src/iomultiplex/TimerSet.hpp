@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -53,9 +53,19 @@ namespace iomultiplex {
         TimerSet (iohandler_base& ioh);
 
         /**
+         * Move constructor.
+         */
+        TimerSet (TimerSet&& ts);
+
+        /**
          * Destructor.
          */
         ~TimerSet ();
+
+        /**
+         * Move operator.
+         */
+        TimerSet& operator= (TimerSet&& rhs);
 
         /**
          * Add a timeout entry.
