@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -180,9 +180,11 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void TimerConnection::cancel (bool cancel_rx, bool cancel_tx)
     {
-        io_handler().cancel (*this);
-        struct itimerspec it {0};
-        timerfd_settime (fd, 0, &it, nullptr); // Disarm the timer
+        FdConnection::cancel (true, true);
+        if (fd != -1) {
+            struct itimerspec it {0};
+            timerfd_settime (fd, 0, &it, nullptr); // Disarm the timer
+        }
     }
 
 
