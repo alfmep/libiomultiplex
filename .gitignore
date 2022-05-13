@@ -27,3 +27,4 @@ depcomp
 .dirstamp
 *.lo
 *.o
+src/iomultiplex.hpp
