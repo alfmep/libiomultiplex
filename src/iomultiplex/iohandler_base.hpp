@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -96,7 +96,9 @@ namespace iomultiplex {
          * callback will be called.
          * \note This method is normally called by a Connection
          *       object and not called directly.
-         * @return 0 on success, -1 if the file descriptor isn't valid.
+         * @return 0 on success, -1 if the file descriptor isn't valid
+         *         the I/O handler is shutting down,
+         *         or the file descriptor can't be used in poll/epoll.
          *         <br/><b>Note:</b> A return value of 0 means that the
          *         read operation was queued, not that the actual read
          *         operation was successful.
@@ -119,7 +121,9 @@ namespace iomultiplex {
          * callback will be called.
          * \note This method is normally called by a Connection
          *       object and not called directly.
-         * @return 0 on success, -1 if the file descriptor isn't valid.
+         * @return 0 on success, -1 if the file descriptor isn't valid,
+         *         the I/O handler is shutting down,
+         *         or the file descriptor can't be used in poll/epoll.
          *         <br/><b>Note:</b> a return value of 0 means that the
          *         write operation was queued, not that the actual write
          *         operation was successful.
