@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -34,6 +34,7 @@
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 
 //#define TRACE_DEBUG
@@ -83,7 +84,6 @@ namespace iomultiplex {
     __thread pid_t IOHandler_Epoll::caller_pid {invalid_pid};
 
 
-#ifdef TRACE_DEBUG
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
     static std::string events_to_string (uint32_t events)
@@ -126,6 +126,30 @@ namespace iomultiplex {
             first_event = false;
             ss << "HUP";
         }
+        if (events & EPOLLET) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "ET";
+        }
+        if (events & EPOLLONESHOT) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "ONESHOT";
+        }
+        if (events & EPOLLWAKEUP) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "WAKEUP";
+        }
+        if (events & EPOLLEXCLUSIVE) {
+            if (!first_event)
+                ss << '|';
+            first_event = false;
+            ss << "EXCLUSIVE";
+        }
         return ss.str ();
     }
 
@@ -145,7 +169,6 @@ namespace iomultiplex {
             return "nop";
         }
     }
-#endif
 
 
     //--------------------------------------------------------------------------
@@ -338,6 +361,7 @@ namespace iomultiplex {
 #ifdef TRACE_DEBUG_POLL
             if (timeout > -1)
                 TRACE_POLL ("Poll timeout in %d ms", timeout);
+            TRACE_POLL ("start epoll_pwait");
 #endif
             ops_mutex.unlock ();
             auto num_events = epoll_pwait (ctl_fd,
@@ -349,6 +373,8 @@ namespace iomultiplex {
 
             if (timeout > -1)
                 clock_gettime (CLOCK_MONOTONIC, &ts);
+
+            TRACE_POLL ("epoll_pwait result: %d", num_events);
 
             if (num_events < 0) {
                 if (errno != EINTR) {
@@ -460,6 +486,15 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    static bool is_fd_a_file (int fd)
+    {
+        struct stat s;
+        return fstat(fd, &s) == 0;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     int IOHandler_Epoll::queue_io_op (Connection& conn,
                                 void* buf,
                                 size_t size,
@@ -512,11 +547,24 @@ namespace iomultiplex {
                 }
                 TRACE_POLL ("epoll_ctl (%s, %d, %s)",
                             epoll_op_to_string(op).c_str(), fd, events_to_string(event.events).c_str());
-                epoll_ctl (ctl_fd, op, fd, &event);
+                if (epoll_ctl(ctl_fd, op, fd, &event)) {
+                    int errnum = errno; // save errno
+                    if (is_fd_a_file(fd)) {
+                        Log::warning ("Can't use epoll with regular files");
+                    }else{
+                        Log::warning ("epoll_ctl(%s, %d, %s) failed: %s",
+                                      epoll_op_to_string(op).c_str(),
+                                      fd,
+                                      events_to_string(event.events).c_str(),
+                                      strerror(errno));
+                    }
+                    errno = errnum; // restore errno
+                    return -1;
+                }
             }
             if (timeout != (unsigned)-1) {
                 //
-                // TODO: Optimize to only re-calculate timeout if new timeout is shorter than current
+                // TODO: Optimize to only re-calculate timeout if new timeout expires earlier than current
                 //
                 // We need to re-calculate the timeout in epoll_pwait, signal it
                 send_signal = true;
