@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -16,19 +16,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EXAMPLES_UTFTP_COMMON_HPP
-#define EXAMPLES_UTFTP_COMMON_HPP
+#ifndef EXAMPLES_TFTP_HPP
+#define EXAMPLES_TFTP_HPP
 
-#include <iomultiplex.hpp>
-#include <string>
-#include <atomic>
-#include <memory>
 #include <cstdint>
+#include <cstdlib>
 
 
 static constexpr size_t   tftp_data_block_size = 512;
-static constexpr uint16_t tftp_default_port_num = 69;
-
+static constexpr uint16_t tftp_default_port    = 69;
+static constexpr ssize_t  tftp_min_packet_size = sizeof(uint16_t) + sizeof(uint16_t);
 
 enum opcode_t : uint16_t {
     op_rrq   = 1,
@@ -39,6 +36,11 @@ enum opcode_t : uint16_t {
 };
 
 struct tftp_pkt_t {
+    tftp_pkt_t () = default;
+    tftp_pkt_t (uint16_t code, const char* str=nullptr);
+    tftp_pkt_t (uint16_t code, uint16_t error_code, const char* str=nullptr);
+    size_t size ();
+
     uint16_t opcode;
     union {
         struct {
@@ -57,6 +59,11 @@ struct tftp_pkt_t {
         }err;
     }op;
 };
+
+
+extern tftp_pkt_t tftp_err_pkt_illegal_op;
+extern tftp_pkt_t tftp_err_pkt_server_busy;
+extern tftp_pkt_t tftp_err_pkt_file_not_found;
 
 
 #endif

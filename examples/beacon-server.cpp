@@ -84,10 +84,12 @@ static void print_usage_and_exit (ostream& out, int exit_code)
     out << "       Simple example of a server that periodically sends out beacons of data to connected clients." << endl;
     out << endl;
     out << "       OPTIONS:" << endl;
-    out << "       -b, --bind=ADDRESS             Address to bind to. Default is " << default_bind_addr << "." << endl;
+    out << "       -b, --bind=ADDRESS             Address to bind to (IPv4 or IPv6). Default is "
+        <<                                        default_bind_addr << "." << endl;
     out << "       -p, --port=PORT                TCP port to listen to. Default is " << default_port << endl;
-    out << "       -i, --interval=MILLISECONDS    Interval between data beacons." << endl;
-    out << "       -s, --size=BYTES               Size in bytes of each data beacon." << endl;
+    out << "       -i, --interval=MILLISECONDS    Interval between data beacons. Default is "
+        <<                                        default_interval << " ms." << endl;
+    out << "       -s, --size=BYTES               Size in bytes of each data beacon. Defaylt is one byte." << endl;
     out << "       -v, --verbose                  Print debug info." << endl;
     out << "       -h, --help                     Print this help and exit." << endl;
     out << endl;

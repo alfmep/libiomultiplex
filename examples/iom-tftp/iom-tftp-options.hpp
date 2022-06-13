@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -16,29 +16,41 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef EXAMPLES_UTFTPD_OPTIONS_HPP
-#define EXAMPLES_UTFTPD_OPTIONS_HPP
+#ifndef EXAMPLES_IOM_TFTPD_OPTIONS_HPP
+#define EXAMPLES_IOM_TFTPD_OPTIONS_HPP
 
-#include <iostream>
-#include <string>
 #include <iomultiplex.hpp>
+#include <string>
 #include <unistd.h>
 #include <sys/types.h>
+
 
 
 //------------------------------------------------------------------------------
 //  T Y P E S
 //------------------------------------------------------------------------------
 struct appargs_t {
-    appargs_t (int argc, char* argv[]);
-    void print_usage_and_exit (std::ostream& out, int exit_code);
+    appargs_t ();
+    int parse_args (int argc, char* argv[]);
+    void print_usage (std::ostream& out);
 
     iomultiplex::IpAddr bind_addr;
-    std::string directory;
+    std::string tftproot;
+    std::string pid_file;
+    std::string cert_file;
+    std::string privkey_file;
+    std::string user;
+    std::string group;
+    size_t max_wrq_size;
     int num_workers;
-    int max_clients;
-    uid_t uid;
-    gid_t gid;
+    size_t max_clients;
+    bool foreground;
+    bool log_to_stdout;
+    bool allow_wrq;
+    bool allow_overwrite;
+    bool dtls;
+    bool verbose;
 };
+
 
 #endif

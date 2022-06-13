@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -52,7 +52,7 @@ static void print_usage_and_exit (ostream& out, int exit_code)
     out << endl;
     out << "       Simple example application to demonstrate Adapter objects in libiomultiplex." << endl;
     out << "       Data is read from standard input and written to standard output. The RX/TX data is modified in optional I/O adapters." << endl;
-    out << "       Data is read and written in chunks of " << chunk_size << " bytes." << endl;
+    out << "       Data is read and written in chunks of maximum " << chunk_size << " bytes." << endl;
     out << endl;
     out << "       Data flow:" << endl;
     out << "       RX: stdin ==> input_adapter_1  ==> ... ==> input_adapter_n ==> buffer" << endl;

@@ -19,6 +19,8 @@
 #include <iomultiplex.hpp>
 #include <iostream>
 #include <string>
+#include <unistd.h>
+#include <getopt.h>
 
 
 namespace iom=iomultiplex;
@@ -31,7 +33,139 @@ using namespace std;
 
 
 // Remote port number
-static constexpr uint16_t echo_port = 42000;
+static constexpr const char*    default_addr = "::1";
+static constexpr const uint16_t default_port = 42000;
+
+
+//------------------------------------------------------------------------------
+// T Y P E S
+//------------------------------------------------------------------------------
+struct appdata_t {
+    iom::default_iohandler ioh;
+    iom::SocketConnection sock;
+    iom::IpAddr ip_addr;
+    iom::UxAddr ux_addr;
+    string ca_file;
+    string cert_file;
+    string privkey_file;
+    bool udp;
+    bool tls;
+    bool verbose;
+
+    appdata_t ()
+        : sock (ioh),
+          ip_addr (default_addr, default_port),
+          udp (false),
+          tls (false),
+          verbose (false)
+    {
+    }
+};
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+static void print_usage_and_exit (ostream& out, int exit_code)
+{
+    out << endl;
+    out << "Usage: " << program_invocation_short_name << " [OPTIONS] [ADDRESS[:PORT]]" << endl;
+    out << endl;
+    out << "       Simple client that sends from standard input and receives to standard output." << endl;
+    out << "       Default ADDRESS:PORT is [" << default_addr << "]:" << default_port << endl;
+    out << endl;
+    out << "       OPTIONS:" << endl;
+    out << "       -d, --domain          Connecto to a UNIX Domain socket instead of an IP address." << endl;
+    out << "       -u, --udp             Use UDP instead of TCP." << endl;
+    out << "       -t, --tls             Use TLS for stream connections(TCP)." << endl;
+    out << "       -a, --ca=FILE         Certificate authority file." << endl;
+    out << "       -c, --cert=FILE       Certificate file." << endl;
+    out << "       -k, --privkey=FILE    Private key file." << endl;
+    out << "       -v, --verbose         Verbose output." << endl;
+    out << "       -h, --help            Print this help and exit." << endl;
+    out << endl;
+
+    exit (exit_code);
+}
+
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+static void parse_args (int argc, char* argv[], appdata_t& app)
+{
+    static struct option long_options[] = {
+        { "domain",  no_argument,       0, 'd'},
+        { "udp",     no_argument,       0, 'u'},
+        { "tls",     no_argument,       0, 't'},
+        { "ca",      required_argument, 0, 'a'},
+        { "cert",    required_argument, 0, 'c'},
+        { "privkey", required_argument, 0, 'k'},
+        { "verbose", no_argument,       0, 'v'},
+        { "help",    no_argument,       0, 'h'},
+        { 0, 0, 0, 0}
+    };
+    static const char* arg_format = "duta:c:k:vh";
+    bool have_domain_arg = false;
+
+    while (1) {
+        int c = getopt_long (argc, argv, arg_format, long_options, NULL);
+        if (c == -1)
+            break;
+        switch (c) {
+        case 'd':
+            have_domain_arg = true;
+            break;
+        case 'u':
+            app.udp = true;
+            break;
+        case 't':
+            app.tls = true;
+            break;
+        case 'a':
+            app.ca_file = optarg;
+            break;
+        case 'c':
+            app.cert_file = optarg;
+            break;
+        case 'k':
+            app.privkey_file = optarg;
+            break;
+        case 'v':
+            app.verbose = true;
+            break;
+        case 'h':
+            print_usage_and_exit (cout, 0);
+            break;
+        default:
+            print_usage_and_exit (cerr, 1);
+            break;
+        }
+    }
+
+    if (optind < argc) {
+        if (have_domain_arg) {
+            app.ux_addr.path (argv[optind++]);
+        }else{
+            if (app.ip_addr.parse(argv[optind++]) == false) {
+                cerr << "Error: Invalid ADDRESS:PORT argument." << endl;
+                exit (1);
+            }
+        }
+    }else{
+        if (have_domain_arg) {
+            cerr << "Error: Must have ADDRESS argument when using Unix domain socket connection." << endl;
+            exit (1);
+        }
+    }
+    if (optind < argc) {
+        cerr << "Error: Invalid argument" << endl;
+        print_usage_and_exit (cerr, 1);
+    }
+
+    if (!app.ux_addr.path().empty()) {
+        // We don't use UDP for Unix domain sockets
+        app.udp = false;
+    }
+}
 
 
 //------------------------------------------------------------------------------
@@ -49,39 +183,59 @@ int main (int argc, char* argv[])
     iom::Log::set_callback (logger);
     iom::Log::priority (LOG_DEBUG);
 
-    iom::default_iohandler ioh;
-    iom::SocketConnection sock (ioh);
+    // Parse command line arguments
+    //
+    appdata_t app;
+    parse_args (argc, argv, app);
 
     // Start the I/O handler in a worker thread
     //
-    ioh.run (true);
+    app.ioh.run (true);
 
-    // Open a UDP/IP socket
+    // Select IP address or Unix Domain Socket address
     //
-    if (sock.open(AF_INET, SOCK_DGRAM)) {
+    iom::SockAddr& srv_addr = app.ux_addr.path().empty() ?
+        dynamic_cast<iom::SockAddr&>(app.ip_addr) :
+        dynamic_cast<iom::SockAddr&>(app.ux_addr);
+
+    // Open the client socket
+    //
+    if (app.sock.open(srv_addr.family(), app.udp ? SOCK_DGRAM : SOCK_STREAM)) {
         perror ("sock.open");
-        return 1;
+        exit (1);
     }
 
-    // "Connect" to our echo server.
-    // Since is is a UDP socket nothing is done but
-    // setting the remote address for sending and
-    // receiving data.
-    //
-    if (sock.connect(iom::IpAddr(127,0,0,1, echo_port))) {
+    if (app.sock.connect(srv_addr)) {
         perror ("sock.connect");
         return 1;
     }
+    cout << "Remote address: " << app.sock.peer().to_string() << endl;
 
-    cout << "Remote address: " << sock.peer().to_string() << endl;
-    cout << "Enter some text to send: " << flush;
-    std::string text;
-    getline (cin, text);
+    iom::TlsAdapter tlsa (app.sock);
+    if (app.tls) {
+        cout << "Start TLS handshake" << endl;
+        if (tlsa.start_tls(iom::TlsConfig(false), false, app.udp)) {
+            perror ("sock.start_tls");
+            return 1;
+        }
+    }
+
+    iom::Connection& conn = app.tls ?
+        dynamic_cast<iom::Connection&>(tlsa) :
+        dynamic_cast<iom::Connection&>(app.sock);
 
     // Send some data
     //
-    cout << "Sending text to " << sock.peer().to_string() << endl;
-    if (sock.write(text.c_str(), text.size()) < 0) {
+    cout << "Enter some text to send: " << flush;
+    std::string text;
+    getline (cin, text);
+    if (!text.size()) {
+        conn.close ();
+        return 0;
+    }
+
+    cout << "Sending " << text.size() << " bytes text to " << app.sock.peer().to_string() << endl;
+    if (conn.write(text.c_str(), text.size()) < 0) {
         perror ("sock.write");
         return 1;
     }
@@ -91,7 +245,8 @@ int main (int argc, char* argv[])
     // Read some data
     //
     char buf[4096];
-    auto result = sock.read (buf, sizeof(buf));
+    ssize_t result;
+    result = conn.read (buf, sizeof(buf));
     if (result < 0) {
         cerr << endl;
         perror ("sock.read");
@@ -102,8 +257,7 @@ int main (int argc, char* argv[])
     cout << " got back " << result << " bytes of data:" << endl;
     cout << '"' << buf << '"' << endl;
 
-    // No need to close the socket here, it is closed in its destructor
-    // No need to stop the I/O handler, it is nicely shut down in its destructor
+    conn.close ();
 
     return 0;
 }
