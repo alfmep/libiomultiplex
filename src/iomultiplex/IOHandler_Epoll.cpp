@@ -302,7 +302,8 @@ namespace iomultiplex {
     //   0  - starting in same thread
     //   1  - starting in new thread
     //--------------------------------------------------------------------------
-    int IOHandler_Epoll::start_running (bool start_worker_thread)
+    int IOHandler_Epoll::start_running (bool start_worker_thread,
+                                        std::unique_lock<std::mutex>& ops_lock)
     {
         if (state != state_t::stopped) {
             // Can't start an I/O handler that isn't stopped
@@ -323,7 +324,7 @@ namespace iomultiplex {
                     run (false);
                 });
 
-            ops_mutex.unlock ();
+            ops_lock.unlock ();
             while (worker_pid == invalid_pid)
                 ; // Busy-wait until the thread has started
             errno = 0;
@@ -338,8 +339,8 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int IOHandler_Epoll::run (bool start_worker_thread)
     {
-        std::lock_guard<std::mutex> lock (ops_mutex);
-        int progress = start_running (start_worker_thread);
+        std::unique_lock<std::mutex> ops_lock (ops_mutex);
+        int progress = start_running (start_worker_thread, ops_lock);
         if (progress)
             return progress<0 ? -1 : 0;
 
@@ -363,13 +364,13 @@ namespace iomultiplex {
                 TRACE_POLL ("Poll timeout in %d ms", timeout);
             TRACE_POLL ("start epoll_pwait");
 #endif
-            ops_mutex.unlock ();
+            ops_lock.unlock ();
             auto num_events = epoll_pwait (ctl_fd,
                                            events,
                                            max_events,
                                            timeout,
                                            &orig_sigmask);
-            ops_mutex.lock ();
+            ops_lock.lock ();
 
             if (timeout > -1)
                 clock_gettime (CLOCK_MONOTONIC, &ts);

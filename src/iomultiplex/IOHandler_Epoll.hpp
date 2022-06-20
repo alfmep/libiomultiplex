@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -146,7 +146,8 @@ namespace iomultiplex {
         timeout_map_t timeout_map;
         int next_timeout ();
 
-        int start_running (bool start_worker_thread);
+        int start_running (bool start_worker_thread,
+                           std::unique_lock<std::mutex>& lock);
         void end_running ();
 
         void handle_timeout (struct timespec& now);
