@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-AC_INIT([libiomultiplex], [0.0.0], [iomultiplex@ultramarin.se])
+AC_INIT([libiomultiplex], [0.1.0], [iomultiplex@ultramarin.se])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign dist-bzip2 subdir-objects])
 
 AC_PROG_CC
