@@ -102,6 +102,15 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    bool TimerSet::empty () const
+    {
+        std::lock_guard<std::mutex> lock (mutex);
+        return times.empty ();
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     long TimerSet::set (unsigned timeout, unsigned repeat, cb_t callback)
     {
         // Get the absolute time of the timeout entry

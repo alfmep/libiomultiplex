@@ -68,6 +68,12 @@ namespace iomultiplex {
         TimerSet& operator= (TimerSet&& rhs);
 
         /**
+         * Check if the timer set is empty.
+         * @return true if the timer set has no active timers.
+         */
+        bool empty () const;
+
+        /**
          * Add a timeout entry.
          * When the timeout expires, the callback is called
          * and the timer entry in the set is removed.
@@ -123,7 +129,7 @@ namespace iomultiplex {
 
         void timer_expired (long id);
         TimerConnection timer;
-        std::mutex mutex;
+        mutable std::mutex mutex;
         long next_id;
         timers_t times; // Sorted on itimerspec
     };
