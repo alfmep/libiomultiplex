@@ -143,9 +143,11 @@ static void on_accept (iom::SocketConnection& srv_sock,
     tls_cfg.privkey_file = tls_key_file;
 
     if (tls->start_server_tls(tls_cfg,
-                              [tls](iom::TlsAdapter& conn, int errnum, const std::string& errstr){
+                              [tls](iom::TlsAdapter& conn){
                                   // We have captured 'tls' so it doesn't go out of scope
-                                  on_tls_handshake (tls, errnum, errstr);
+                                  on_tls_handshake (tls,
+                                                    tls->last_error(),
+                                                    tls->last_error_msg());
                               },
                               default_timeout))
     {

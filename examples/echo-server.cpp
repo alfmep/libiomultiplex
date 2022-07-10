@@ -393,8 +393,12 @@ static void on_accept (appdata_t& app,
 
         dynamic_cast<iom::TlsAdapter*>(tlsa.get())->start_server_tls (
                 tls_cfg,
-                [&app, tlsa, peer](iom::TlsAdapter& conn, int errnum, const std::string& errstr){
-                    on_tls_handshake (app, tlsa, peer, errnum, errstr);
+                [&app, tlsa, peer](iom::TlsAdapter& tls){
+                    on_tls_handshake (app,
+                                      tlsa,
+                                      peer,
+                                      tls.last_error(),
+                                      tls.last_error_msg());
                 },
                 5000); // 5 sec timeout
     }else{
@@ -479,8 +483,13 @@ static void on_datagram_rx (appdata_t& app,
                 dtls_cfg,
                 ior.buf,
                 (size_t)(ior.result>0 ? ior.result : 0),
-                [&app, dtlsa, buf, peer](iom::TlsAdapter& conn, int errnum, const std::string& errstr){
-                    on_dtls_handshake (app, dtlsa, buf, peer, errnum, errstr);
+                [&app, dtlsa, buf, peer](iom::TlsAdapter& tls){
+                    on_dtls_handshake (app,
+                                       dtlsa,
+                                       buf,
+                                       peer,
+                                       tls.last_error(),
+                                       tls.last_error_msg());
                 },
                 5000); // 5 sec timeout
         if (result) {

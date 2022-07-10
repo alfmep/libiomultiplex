@@ -50,6 +50,7 @@ namespace iomultiplex {
           tls (nullptr),
           mem_bio (nullptr),
           fd_bio (nullptr),
+          last_err (0),
           tls_started (false),
           tls_active (false)
     {
@@ -64,6 +65,7 @@ namespace iomultiplex {
           tls (nullptr),
           mem_bio (nullptr),
           fd_bio (nullptr),
+          last_err (0),
           tls_started (false),
           tls_active (false)
     {
@@ -105,7 +107,8 @@ namespace iomultiplex {
         tls_active  = false;
         tls_started = false;
 
-        ERR_clear_error ();
+        clear_error ();
+
         Adapter::close ();
     }
 
@@ -120,9 +123,33 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    void TlsAdapter::clear_error ()
+    {
+        ERR_clear_error ();
+        last_err = 0;
+        last_err_msg = "";
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void TlsAdapter::update_error (const char* msg)
+    {
+        last_err = ERR_peek_last_error ();
+        if (!msg) {
+            const char* err_str = ERR_reason_error_string (last_err);
+            last_err_msg = err_str ? err_str : "";
+        }else{
+            last_err_msg = msg;
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     unsigned long TlsAdapter::last_error () const
     {
-        return ERR_peek_last_error ();
+        return last_err;
     }
 
 
@@ -130,8 +157,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     std::string TlsAdapter::last_error_msg () const
     {
-        const char* err_str = ERR_reason_error_string (ERR_peek_last_error());
-        return std::string (err_str ? err_str : "");
+        return last_err_msg;
     }
 
 
@@ -254,7 +280,7 @@ namespace iomultiplex {
             return -1; // TLS already active or pending.
         }
 
-        ERR_clear_error ();
+        clear_error ();
 
         TRACE ("Starting TLS %s handshake on file handle %d",
                (is_server ? "server" : "client"), handle());
@@ -356,10 +382,10 @@ namespace iomultiplex {
                       use_dtls,
                       buf,
                       buf_len,
-                      [this, &errnum, &io_done](Connection& conn, int err, const std::string& errstr){
+                      [this, &errnum, &io_done](Connection& conn){
                           std::unique_lock<std::mutex> lock (sync_mutex);
                           io_done = true;
-                          errnum = err;
+                          errnum = last_error ();
                           sync_cond.notify_one ();
                       },
                       timeout) == 0)
@@ -417,7 +443,7 @@ namespace iomultiplex {
         BIO_set_mem_eof_return (mem_bio, -1);
         SSL_set0_rbio (tls, mem_bio);
 
-        ERR_clear_error ();
+        clear_error ();
 
         // Start TLS server handshake
         auto ret = SSL_accept (tls);
@@ -436,8 +462,8 @@ namespace iomultiplex {
             TRACE ("TLS handshake success for file handle %d after only initial RX buffer data", handle());
             tls_active = true;
             if (cb) {
-                retval = wait_for_tx ([this, cb](io_result_t& ior)->bool{
-                                          cb (*this, 0, "");
+                retval = wait_for_tx ([this, cb](io_result_t& ior)->bool {
+                                          cb (*this);
                                           return false;
                                       }, timeout);
             }
@@ -463,15 +489,17 @@ namespace iomultiplex {
             break;
 
         case SSL_ERROR_SYSCALL:
-            TRACE ("SSL_ERROR_SYSCALL: %s", ERR_reason_error_string(ERR_get_error()));
+            update_error ();
             retval = -1;
+            TRACE ("SSL_ERROR_SYSCALL: %s", last_err_msg.c_str());
             break;
 
         case SSL_ERROR_SSL:
-            TRACE ("SSL_ERROR_SSL: %s", ERR_reason_error_string(ERR_get_error()));
         default:
+            update_error ();
             errno = ECONNREFUSED;
             retval = -1;
+            TRACE ("SSL_ERROR_SSL: %s", last_err_msg.c_str());
         }
 
         return retval;
@@ -485,12 +513,11 @@ namespace iomultiplex {
                                            unsigned timeout,
                                            int errnum)
     {
-        const char* err_str {""};
         int tls_error {0};
         int ret {0};
 
         if (!errnum) {
-            ERR_clear_error ();
+            clear_error ();
             if (is_server)
                 ret = SSL_accept (tls);
             else
@@ -521,13 +548,16 @@ namespace iomultiplex {
                 return false;
 
             case SSL_ERROR_SYSCALL:
-                errnum = errno ? errno : EIO;
-                err_str = ERR_reason_error_string (ERR_get_error());
+                if (!errnum) {
+                    ERR_put_error (ERR_LIB_USER, SYS_F_CONNECT, ERR_R_SYS_LIB, __FILE__, __LINE__);
+                    errnum = EIO;
+                }
+                update_error (strerror(errnum));
                 break;
 
             case SSL_ERROR_SSL:
             default:
-                err_str = ERR_reason_error_string (ERR_get_error());
+                update_error ();
                 errnum = ECONNREFUSED;
             }
         }
@@ -548,16 +578,14 @@ namespace iomultiplex {
             tls_ctx     = nullptr;
             tls_active  = false;
             tls_started = false;
-            if (!err_str)
-                err_str = strerror (errnum);
-            TRACE ("TLS handshake failed for file handle %d: %s", handle(), err_str);
+            TRACE ("TLS handshake failed for file handle %d: %s", handle(), last_err_msg.c_str());
         }else{
             TRACE ("TLS handshake success for file handle %d", handle());
             tls_active = true;
         }
 
         if (cb)
-            cb (*this, errnum, err_str);
+            cb (*this);
 
         return false;
     }
@@ -571,7 +599,7 @@ namespace iomultiplex {
             return Adapter::do_read (buf, size, errnum);
 
         ssize_t bytes_read {0};
-        ERR_clear_error ();
+        clear_error ();
         int result = SSL_read_ex (tls, buf, size, (size_t*)&bytes_read);
         if (result > 0) {
             errnum = 0;
@@ -596,21 +624,17 @@ namespace iomultiplex {
                     errnum = 0;
                     bytes_read = 0;
                 }else{
+                    update_error ();
                     bytes_read = -1;
-                    const char* err_str = ERR_reason_error_string (ERR_get_error());
-                    if (!err_str)
-                        err_str = strerror (errnum);
-                    Log::debug ("TLS read error: %s", err_str);
+                    Log::debug ("TLS read error: %s", last_err_msg.c_str());
                 }
                 break;
 
             default:
+                update_error ();
                 bytes_read = -1;
                 errnum = errno ? errno : EIO;
-                const char* err_str = ERR_reason_error_string (ERR_get_error());
-                if (!err_str)
-                    err_str = strerror (errnum);
-                Log::debug ("TLS read error: %s", err_str);
+                Log::debug ("TLS read error: %s", last_err_msg.c_str());
             }
         }
         return bytes_read;
@@ -625,7 +649,7 @@ namespace iomultiplex {
             return Adapter::do_write (buf, size, errnum);
 
         ssize_t bytes_written {0};
-        ERR_clear_error ();
+        clear_error ();
         int result = SSL_write_ex (tls, buf, size, (size_t*)&bytes_written);
         if (result > 0) {
             errnum = 0;
@@ -650,21 +674,17 @@ namespace iomultiplex {
                     errnum = 0;
                     bytes_written = 0;
                 }else{
+                    update_error ();
                     bytes_written = -1;
-                    const char* err_str = ERR_reason_error_string (ERR_get_error());
-                    if (!err_str)
-                        err_str = strerror (errnum);
-                    Log::debug ("TLS write error: %s", err_str);
+                    Log::debug ("TLS write error: %s", last_err_msg.c_str());
                 }
                 break;
 
             default:
+                update_error ();
                 bytes_written = -1;
                 errnum = EIO;
-                const char* err_str = ERR_reason_error_string (ERR_get_error());
-                if (!err_str)
-                    err_str = strerror (errnum);
-                Log::debug ("TLS write error: %s", err_str);
+                Log::debug ("TLS write error: %s", last_err_msg.c_str());
             }
         }
         return bytes_written;

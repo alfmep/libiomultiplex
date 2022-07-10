@@ -39,13 +39,9 @@ namespace iomultiplex {
     public:
         /**
          * Callback that is called when a TLS handshake is finished (successful or not).
-         * @param connection The TlsAdapter instance that attempted to establish a secure connection.
-         * @param errnum The value of errno after the connection attempt. 0 if successful.
-         * @param errstr An error string describing the error. This could be an empty string.
+         * @param tls The TlsAdapter instance that attempted to establish a secure connection.
          */
-        using tls_handshake_cb_t = std::function<void (TlsAdapter& conn,
-                                                       int errnum,
-                                                       const std::string& errstr)>;
+        using tls_handshake_cb_t = std::function<void (TlsAdapter& tls)>;
 
 
         /**
@@ -397,11 +393,15 @@ namespace iomultiplex {
                                    tls_handshake_cb_t cb,
                                    unsigned timeout,
                                    int errnum);
+        void clear_error ();
+        void update_error (const char* msg=nullptr);
 
         SSL_CTX* tls_ctx; // OpenSSL context object
         SSL* tls;         // OpenSSL SSL(TLS) object
         BIO* mem_bio;
         BIO* fd_bio;
+        unsigned long last_err;
+        std::string last_err_msg;
         std::unique_ptr<char> mem_bio_buf;
         std::atomic_bool tls_started; // TLS handshake started
         std::atomic_bool tls_active;  // TLS handshake done and TLS active

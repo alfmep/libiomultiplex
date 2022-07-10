@@ -160,9 +160,11 @@ static void on_new_client (iom::SocketConnection& srv_sock,
     tls_cfg.privkey_file = tls_key_file;
 
     if (dtls->start_server_dtls(tls_cfg,
-                                [dtls](iom::TlsAdapter& conn, int errnum, const std::string& errstr){
+                                [dtls](iom::TlsAdapter& conn){
                                     // We have captured 'dtls' so it doesn't go out of scope
-                                    on_dtls_handshake (dtls, errnum, errstr);
+                                    on_dtls_handshake (dtls,
+                                                       dtls->last_error(),
+                                                       dtls->last_error_msg());
                                 },
                                 default_timeout))
     {
