@@ -18,7 +18,7 @@
 #
 lib_LTLIBRARIES = libiomultiplex.la
 
-AM_CPPFLAGS = -I$(srcdir) -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${localstatedir}"'
+AM_CPPFLAGS = -I$(srcdir) -D_GNU_SOURCE -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${localstatedir}"'
 AM_LDFLAGS = -pthread -lresolv
 AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread
 AM_LDFLAGS += -version-info @LIBRARY_VERSION@
@@ -61,6 +61,7 @@ libiomultiplex_la_SOURCES += iomultiplex/TimerSet.cpp
 libiomultiplex_la_SOURCES += iomultiplex/Adapter.cpp
 libiomultiplex_la_SOURCES += iomultiplex/ChunkAdapter.cpp
 if HAVE_OPENSSL
+libiomultiplex_la_SOURCES += iomultiplex/x509_t.cpp
 libiomultiplex_la_SOURCES += iomultiplex/TlsAdapter.cpp
 endif
 
@@ -93,6 +94,7 @@ nobase_libiomultiplex_HEADERS += iomultiplex/TimerSet.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/Adapter.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/ChunkAdapter.hpp
 if HAVE_OPENSSL
+nobase_libiomultiplex_HEADERS += iomultiplex/x509_t.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/TlsConfig.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/TlsAdapter.hpp
 endif

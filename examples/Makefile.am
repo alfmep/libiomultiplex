@@ -19,7 +19,7 @@
 
 if ENABLE_EXAMPLES_SET
 
-AM_CPPFLAGS = -I$(srcdir)/../src -I../src -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${localstatedir}"' -DRUNSTATEDIR='"${runstatedir}"'
+AM_CPPFLAGS = -I$(srcdir)/../src -I../src -D_GNU_SOURCE -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${localstatedir}"' -DRUNSTATEDIR='"${runstatedir}"'
 AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread
 AM_LDFLAGS = -pthread -lresolv
 
@@ -39,6 +39,9 @@ sync_file_read_SOURCES = sync-file-read.cpp
 
 noinst_bin_PROGRAMS += async-file-read
 async_file_read_SOURCES = async-file-read.cpp
+
+noinst_bin_PROGRAMS += tls-connect
+tls_connect_SOURCES = tls-connect.cpp
 
 noinst_bin_PROGRAMS += echo-tcp-server
 echo_tcp_server_SOURCES = echo-tcp-server.cpp

@@ -163,14 +163,76 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
+    x509_t TlsAdapter::peer_cert () const
+    {
+        x509_t x509;
+        if (tls_active)
+            x509 = x509_t (SSL_get_peer_certificate(tls), true, true);
+        return x509;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    std::string TlsAdapter::cipher_name () const
+    {
+        const char* name = tls_active ? SSL_get_cipher_name(tls) : "";
+        return std::string (name ? name : "");
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    std::string TlsAdapter::proto_ver () const
+    {
+        const char* name = tls_active ? SSL_get_cipher_version(tls) : "";
+        return std::string (name ? name : "");
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    bool TlsAdapter::verify_peer (long& error_code) const
+    {
+        error_code = X509_V_ERR_UNSPECIFIED;
+        X509* x509 = nullptr;
+        if (tls_active && (x509=SSL_get_peer_certificate(tls)) != nullptr) {
+            error_code = SSL_get_verify_result (tls);
+            X509_free (x509);
+        }
+        return error_code == X509_V_OK;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    bool TlsAdapter::verify_peer (long& error_code, std::string& error_message) const
+    {
+        auto retval = verify_peer (error_code);
+        error_message = std::string (X509_verify_cert_error_string(error_code));
+        return retval;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     static int set_tls_cert_files (SSL_CTX* ctx, const TlsConfig& cfg)
     {
-        if (!cfg.ca_file.empty()) {
-            if (SSL_CTX_load_verify_locations(ctx, cfg.ca_file.c_str(), nullptr) == 0) {
+        if (cfg.ca_path.empty() && cfg.ca_file.empty()) {
+            // Default CA file and dir
+            TRACE ("Setting default TLS CA dir/file");
+            SSL_CTX_set_default_verify_paths (ctx);
+        }else{
+            TRACE ("Setting TLS CA dir and/or file");
+            if (0 == SSL_CTX_load_verify_locations(ctx,
+                                                   (cfg.ca_file.empty() ? nullptr : cfg.ca_file.c_str()),
+                                                   (cfg.ca_path.empty() ? nullptr : cfg.ca_path.c_str())))
+            {
                 TRACE ("Error setting TLS CA file");
                 return -1;
             }
         }
+
         if (!cfg.cert_file.empty()) {
             if (SSL_CTX_use_certificate_file(ctx, cfg.cert_file.c_str(), SSL_FILETYPE_PEM) == 0) {
                 TRACE ("Error setting TLS certificate file");
@@ -253,6 +315,11 @@ namespace iomultiplex {
                                 SSL_VERIFY_NONE,
                                 nullptr);
 
+        // Disable renegotiation in TLSv1.2 and earlier
+        auto opts = SSL_CTX_get_options (tls_ctx);
+        opts |= SSL_OP_NO_RENEGOTIATION;
+        SSL_CTX_set_options (tls_ctx, opts);
+
         return tls_ctx;
     }
 
@@ -310,6 +377,10 @@ namespace iomultiplex {
             errno       = EINVAL;
             return -1;
         }
+
+        // Configure SNI sent by client
+        if (!is_server && !tls_config.sni.empty())
+            SSL_set_tlsext_host_name (tls, tls_config.sni.c_str());
 
         // Initiate the TLS handshake
         //

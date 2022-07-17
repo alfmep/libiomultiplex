@@ -1,5 +1,6 @@
 sync-file-read
 async-file-read
+tls-connect
 echo-udp-client
 echo-udp-server
 echo-tcp-server

@@ -92,6 +92,8 @@ namespace iomultiplex {
         unsigned max_tls_ver;      /**< Maximum allowed TLS version. Default is TLS_MAX_VERSION, as defined in OpenSSL. */
         unsigned min_dtls_ver;     /**< Minimum allowed DTLS version. Default is DTLS_MIN_VERSION, defined in OpenSSL. */
         unsigned max_dtls_ver;     /**< Maximum allowed DTLS version. Default is DTLS_MAX_VERSION, defined in OpenSSL. */
+        std::string sni;           /**< Server Name Indication (SNI) value sent by TLS client. */
+        std::string ca_path;       /**< Directory path containing Certificate Authorities. */
         std::string ca_file;       /**< File containing a Certificate Authority. */
         std::string cert_file;     /**< File containing a certificate to use. */
         std::string privkey_file;  /**< File containing the private key of the used certificate. */

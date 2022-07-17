@@ -94,7 +94,8 @@ AM_COND_IF([ENABLE_OPENSSL_SET],
 			[
 				REQUIRE_IN_PC_FILE+=" openssl"
 				AM_CONDITIONAL([HAVE_OPENSSL], true)
-				TLS_ADAPTER_HEADER_FILES="#include <iomultiplex/TlsConfig.hpp>
+				TLS_ADAPTER_HEADER_FILES="#include <iomultiplex/x509_t.hpp>
+#include <iomultiplex/TlsConfig.hpp>
 #include <iomultiplex/TlsAdapter.hpp>"
 			],
 			[
