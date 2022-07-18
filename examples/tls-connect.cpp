@@ -88,6 +88,8 @@ static void print_usage_and_exit (ostream& out, int exit_code)
         << "                                 VER is one of dtls1 and dtls1_2." << endl;
     out << "       --max-dtls-ver=VER        Maximum allowed DTLS version. " << endl
         << "                                 VER is one of dtls1 and dtls1_2." << endl;
+    out << "       --cipher-list=CIPHERS     Set allowed ciphers for TLS v1.2 and below. " << endl;
+    out << "       --cipher-suits=CIPHERS    Set allowed ciphers for TLS v1.3. " << endl;
     out << "       -h, --help                Print this help and exit." << endl;
     out << endl;
 
@@ -114,6 +116,8 @@ static void parse_args (int argc, char* argv[], appdata_t& app)
         { "max-tls-ver",  required_argument, &opt, 2},
         { "min-dtls-ver", required_argument, &opt, 3},
         { "max-dtls-ver", required_argument, &opt, 4},
+        { "cipher-list",  required_argument, &opt, 5},
+        { "cipher-suits", required_argument, &opt, 6},
         { "help",    no_argument,       0, 'h'},
         { 0, 0, 0, 0}
     };
@@ -174,6 +178,12 @@ static void parse_args (int argc, char* argv[], appdata_t& app)
                     cerr << "Error: Invalid DTLS version argument" << endl;
                     exit (1);
                 }
+                break;
+            case 5:
+                app.tls_cfg.cipher_list = optarg;
+                break;
+            case 6:
+                app.tls_cfg.cipher_suites = optarg;
                 break;
             }
             break;
