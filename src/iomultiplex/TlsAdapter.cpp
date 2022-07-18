@@ -253,9 +253,9 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     static int set_tls_ciphers (SSL_CTX* ctx, const TlsConfig& cfg)
     {
-        if (!cfg.cipher_list.empty()) {
-            if (SSL_CTX_set_cipher_list(ctx, cfg.cipher_list.c_str()) == 0) {
-                TRACE ("Error setting TLS cipher list");
+        if (!cfg.cipher_suites.empty()) {
+            if (SSL_CTX_set_ciphersuites(ctx, cfg.cipher_suites.c_str()) == 0) { // TLSv1.3
+                TRACE ("Error setting TLS cipher suites");
                 return -1;
             }
         }
