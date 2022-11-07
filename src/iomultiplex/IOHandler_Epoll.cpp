@@ -144,12 +144,14 @@ namespace iomultiplex {
             first_event = false;
             ss << "WAKEUP";
         }
+#ifdef EPOLLEXCLUSIVE
         if (events & EPOLLEXCLUSIVE) {
             if (!first_event)
                 ss << '|';
             first_event = false;
             ss << "EXCLUSIVE";
         }
+#endif
         return ss.str ();
     }
 
