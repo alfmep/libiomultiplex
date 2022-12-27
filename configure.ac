@@ -166,8 +166,7 @@ AM_COND_IF([ENABLE_DOXYGEN_SET],
 )
 
 
-
-AC_OUTPUT([
+AC_CONFIG_FILES([
 	Makefile
 	src/Makefile
 	src/iomultiplex.hpp
@@ -175,6 +174,8 @@ AC_OUTPUT([
 	examples/Makefile
 	doc/Makefile
 ])
+
+AC_OUTPUT
 
 
 #
