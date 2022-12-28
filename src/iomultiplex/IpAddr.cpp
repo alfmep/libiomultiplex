@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -133,7 +133,7 @@ namespace iomultiplex {
     {
         memset (&sa, 0, sizeof(sa));
         if (!parse(address))
-            throw std::system_error (EINVAL, std::system_category());
+            throw std::invalid_argument ("Invalid IPv[4|6] address.");
     }
 
 
@@ -143,7 +143,7 @@ namespace iomultiplex {
     {
         memset (&sa, 0, sizeof(sa));
         if (!parse(address))
-            throw std::system_error (EINVAL, std::system_category());
+            throw std::invalid_argument ("Invalid IPv[4|6] address.");
         port (port_num);
     }
 
@@ -261,6 +261,7 @@ namespace iomultiplex {
         bool try_ipv4 = true;
         bool try_ipv6 = true;
         int port_num = -1;
+        int errno_backup = errno; // inet_pton() modifies errno
 
         if (address[0] == '[') {
             // This must be an IPv6 address
@@ -312,6 +313,7 @@ namespace iomultiplex {
         else
             port (orig_port);
 
+        errno = errno_backup; // Restore errno
         return success;
     }
 
