@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -44,6 +44,7 @@ namespace iomultiplex {
 
         /**
          * Move constructor.
+         * @param rhs The TimerConnection object to move.
          */
         TimerConnection (TimerConnection&& rhs);
 
@@ -54,6 +55,8 @@ namespace iomultiplex {
 
         /**
          * Move operator.
+         * @param rhs The TimerConnection object to move.
+         * @return A reference to this object.
          */
         TimerConnection& operator= (TimerConnection&& rhs);
 
@@ -87,6 +90,11 @@ namespace iomultiplex {
 
         /**
          * Activate the timer with an absolute time in the future.
+         * @param timeout The absolute time of the timeout.
+         * @param callback The callback function to call when the timer expires.
+         * @return 0 on success.
+         *         If the timer can't be activated, -1 is returned
+         *         and <code>errno</code> is set.
          */
         int set (const struct timespec& timeout, std::function<void()> callback);
 

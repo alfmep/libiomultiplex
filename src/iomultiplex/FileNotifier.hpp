@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -42,7 +42,7 @@ namespace iomultiplex {
     public:
         /**
          * Callback for watched files/directoies.
-         * @fn The FileNotifier object handling the notification.
+         * @param fn The FileNotifier object handling the notification.
          * @param pathname The pathname as specified in method add_watch().
          * @param event The event(s) triggering the watch callback.
          * @param cookie Unique cookie associating related events.
@@ -63,6 +63,7 @@ namespace iomultiplex {
 
         /**
          * Move Constructor.
+         * @param fn The FileNotifier object to move.
          */
         FileNotifier (FileNotifier&& fn);
 
@@ -74,6 +75,8 @@ namespace iomultiplex {
 
         /**
          * Move operator.
+         * @param fn The FileNotifier object to move.
+         * @return A reference to this object.
          */
         FileNotifier& operator= (FileNotifier&& fn);
 
@@ -81,6 +84,7 @@ namespace iomultiplex {
          * Add a file watcher.
          * @param pathname The name of the file/directory to watch.
          * @param events Events to watch.
+         * @param callback A callback to be called when the watch is triggered.
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         int add_watch (const std::string& pathname, uint32_t events, watch_cb callback);
@@ -88,7 +92,6 @@ namespace iomultiplex {
         /**
          * Remove a file watcher.
          * @param pathname The name of the file/directory that is watched.
-         * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         void remove_watch (const std::string& pathname);
 

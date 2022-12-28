@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -37,21 +37,26 @@ namespace iomultiplex {
 
         /**
          * Constructor.
+         * @param path The Unix Domain Socket address.
+         * @param abstract If <code>true</code>, the path will
+         *        have no connection with filesystem pathnames.
          */
         UxAddr (const std::string& path, const bool abstract=false);
 
         /**
          * Copy constructor.
+         * @param addr The UxAddr objet to copy.
          */
         UxAddr (const UxAddr& addr);
 
-        /**
+        /*
          * Create an UxAddr from a <code>struct sockaddr</code>.
          */
         //explicit UxAddr (const struct sockaddr& saddr, socklen_t size);
 
         /**
-         * Create an UxAddr from a <code>struct sockaddr_in</code>.
+         * Create an UxAddr from a <code>struct sockaddr_un</code>.
+         * @param saddr The sockaddr_un object to copy.
          */
         explicit UxAddr (const struct sockaddr_un& saddr);
 
@@ -62,38 +67,44 @@ namespace iomultiplex {
 
         /**
          * Assignment operator.
+         * @param addr The UxAddr objet to copy.
+         * @return A reference to this object.
          */
         virtual UxAddr& operator= (const UxAddr& addr);
 
         /**
          * Assignment operator.
+         * @param saddr The sockaddr_un objet to copy.
+         * @return A reference to this object.
          */
         UxAddr& operator= (const struct sockaddr_un& saddr);
 
-        /**
+        /*
          * Compare operator.
          */
         //bool operator== (const UxAddr& addr) const;
 
-        /**
+        /*
          * Not-equal operator.
          */
         //bool operator!= (const UxAddr& addr) const {
         //    return ! operator== (addr);
         //}
 
-        /**
+        /*
          * Less-than operator.
          */
         //bool operator< (const UxAddr& rhs) const;
 
         /**
          * Return the size of the address data.
+         * @return The size of the address data.
          */
         virtual size_t size () const;
 
         /**
-         * Get the pat to the Unix Domain Socket.
+         * Get the path of the Unix Domain Socket.
+         * @return The path of the Unix Domain Socket.
          */
         const std::string path () const;
 
@@ -107,16 +118,19 @@ namespace iomultiplex {
 
         /**
          * Check if this is an abstract address.
+         * @return <code>true</code> if this is an abstract address.
          */
         bool is_abstract () const;
 
         /**
          * Make a clone of this address object.
+         * @return A copy of this object.
          */
         virtual std::shared_ptr<SockAddr> clone () const;
 
         /**
          * Return a string representation of the address.
+         * @return A string representation of the address.
          */
         virtual std::string to_string () const;
     };

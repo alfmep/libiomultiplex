@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -120,6 +120,8 @@ namespace iomultiplex {
 
         /**
          * Cancel I/O operations for this connection.
+         * @param cancel_rx If <code>true</code> (default), cancel all RX operations.
+         * @param cancel_tx If <code>true</code> (default), cancel all TX operations.
          */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 

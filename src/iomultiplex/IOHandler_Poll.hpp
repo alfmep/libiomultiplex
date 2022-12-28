@@ -90,6 +90,11 @@ namespace iomultiplex {
          * specified connection. The pending I/O operations
          * will have a result of -1 and <code>errnum</code>
          * set to <code>ECANCELED</code>.
+         * @param conn The connection for which to cancel RX/TX operations.
+         * @param cancel_rx If <code>true</code> (default),
+         *                  cancel all RX operations.
+         * @param cancel_tx If <code>true</code> (default),
+         *                  cancel all TX operations.
          */
         virtual void cancel (Connection& conn, bool cancel_rx=true, bool cancel_tx=true);
 

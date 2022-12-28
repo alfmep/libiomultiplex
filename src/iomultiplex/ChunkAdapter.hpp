@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -27,6 +27,7 @@ namespace iomultiplex {
 
 
     /**
+     * An I/O adpapter that read and write a block of data at a time.
      */
     class ChunkAdapter : public Adapter {
     public:
@@ -76,6 +77,7 @@ namespace iomultiplex {
          * is read, or an error occurs, the supplied callback function
          * is called.
          * @param buf Where to store the data.
+         * @param chunk_size The size of each data chunk to read.
          * @param num_chunks The number of data chunks to read.
          * @param rx_cb If not <code>nullptr</code>, this callback
          *              is called when the read operation has generated
@@ -101,6 +103,7 @@ namespace iomultiplex {
          * This method blocks until the read operation is finished, cancelled,
          * timed out, or an error occurs.
          * @param buf The buffer where to store the data.
+         * @param chunk_size The size of each data chunk to read.
          * @param num_chunks The number of data chunks to read.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
          * @return The number of chunks read, or -1 on error.
@@ -119,6 +122,7 @@ namespace iomultiplex {
          * is written, or an error occurs, the supplied callback function
          * is called.
          * @param buf The buffer from where to write data.
+         * @param chunk_size The size of each data chunk to write.
          * @param num_chunks The number of data chunks to write.
          * @param tx_cb If not <code>nullptr</code>, this callback
          *              is called when the write operation has generated
@@ -147,6 +151,7 @@ namespace iomultiplex {
          * This method blocks until the write operation is finished, cancelled,
          * timed out, or an error occurs.
          * @param buf The buffer from where to write data.
+         * @param chunk_size The size of each data chunk to write.
          * @param num_chunks The number of data chunks to write.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
          * @return The number of chunks written, or -1 on error.
@@ -160,6 +165,8 @@ namespace iomultiplex {
 
         /**
          * Cancel I/O operations for this connection.
+         * @param cancel_rx If <code>true</code> (default), cancel all RX operations.
+         * @param cancel_tx If <code>true</code> (default), cancel all TX operations.
          */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 

@@ -54,6 +54,7 @@ namespace iomultiplex {
 
         /**
          * Move constructor.
+         * @param ts The TimerSet object to move.
          */
         TimerSet (TimerSet&& ts);
 
@@ -64,6 +65,8 @@ namespace iomultiplex {
 
         /**
          * Move operator.
+         * @param rhs The TimerSet object to move.
+         * @return A reference to this object.
          */
         TimerSet& operator= (TimerSet&& rhs);
 

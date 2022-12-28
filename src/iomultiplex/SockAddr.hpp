@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -51,11 +51,15 @@ namespace iomultiplex {
 
         /**
          * Compare operator.
+         * @param addr The SockAddr object to compare.
+         * @return <code>true</code> if the addresses are equal.
          */
         bool operator== (const SockAddr& addr) const;
 
         /**
          * Not-equal operator.
+         * @param addr The SockAddr object to compare.
+         * @return <code>true</code> if the addresses are <em>not</em> equal.
          */
         bool operator!= (const SockAddr& addr) const {
             return ! operator== (addr);
@@ -63,16 +67,21 @@ namespace iomultiplex {
 
         /**
          * Less-than operator.
+         * @param rhs The right hand size of the comparison.
+         * @return <code>true</code> if this object
+         *         is less than <code>rhs</code>.
          */
         bool operator< (const SockAddr& rhs) const;
 
         /**
          * Return the size of the address data.
+         * @return The size of the address data.
          */
         virtual size_t size () const = 0;
 
         /**
          * Return the address data.
+         * @return A pointer to the address data.
          */
         const struct sockaddr* data () const;
 
@@ -89,11 +98,13 @@ namespace iomultiplex {
 
         /**
          * Make a clone of this address object.
+         * @return A copy of this object.
          */
         virtual std::shared_ptr<SockAddr> clone () const = 0;
 
         /**
          * Return a string representation of the socket address.
+         * @return A string representation of the socket address.
          */
         virtual std::string to_string () const = 0;
 
@@ -117,6 +128,8 @@ namespace std {
 
         /**
          * Return the hash code of an SockAddr object.
+         * @param addr A SockAddr object.
+         * @return The hash code of an SockAddr object.
          */
         result_type operator () (argument_type const& addr) const noexcept {
             result_type h = 0;

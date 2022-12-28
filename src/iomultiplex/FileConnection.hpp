@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -45,6 +45,7 @@ namespace iomultiplex {
 
         /**
          * Move Constructor.
+         * @param fc The FileConnection object to move.
          */
         FileConnection (FileConnection&& fc);
 
@@ -75,6 +76,8 @@ namespace iomultiplex {
 
         /**
          * Move operator.
+         * @param fc The FileConnection object to move.
+         * @return A reference to this object.
          */
         FileConnection& operator= (FileConnection&& fc);
 

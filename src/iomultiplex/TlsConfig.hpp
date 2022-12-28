@@ -45,6 +45,7 @@ namespace iomultiplex {
 
         /**
          * Constructor.
+         * @param verify Value of <code>verify_peer</code>.
          */
         TlsConfig (bool verify)
             : verify_peer  {verify},
@@ -57,6 +58,8 @@ namespace iomultiplex {
 
         /**
          * Constructor.
+         * @param verify Value of <code>verify_peer</code>.
+         * @param certificate_authority_file Certificate Authority file name.
          */
         TlsConfig (bool verify,
                    const std::string& certificate_authority_file)
@@ -71,6 +74,10 @@ namespace iomultiplex {
 
         /**
          * Constructor.
+         * @param verify Value of <code>verify_peer</code>.
+         * @param certificate_authority_file Certificate Authority file name.
+         * @param certificate_file Certificate file name.
+         * @param private_key_file Private Key file name.
          */
         TlsConfig (bool verify,
                    const std::string& certificate_authority_file,

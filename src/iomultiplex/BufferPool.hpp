@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -41,7 +41,7 @@ namespace iomultiplex {
         /**
          * Construct a memory buffer pool.
          * Initially all buffers are cleared (filled with zeroes).
-         * @param buffer_size The size in bytes of each memory buffer in the pool.
+         * @param chunk_size The size in bytes of each memory buffer in the pool.
          * @param capacity The number of buffers in the buffer pool.
          * @param grow_capacity If the pool is empty, increase it with this
          *                      number of buffers, each with size <code>chunk_size</code>.
@@ -73,6 +73,7 @@ namespace iomultiplex {
          * \note No error checking is made to validate that the buffer
          *       to put back actually belongs to the buffer pool, or
          *       if the same buffer is but back more than once in a row.
+         * @param buf The buffer to put back to the pool.
          * @throw std::runtime_error If too many buffers are returned to the pool.
          */
         void put (void* buf);

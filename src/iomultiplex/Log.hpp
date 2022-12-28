@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -64,8 +64,12 @@ namespace iomultiplex {
      * it is set as the default log callback for log messages procuded
      * by the methods in class Log.
      *
+     * @param priority A syslog priority.<br>
+     *                 One of: LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR,
+     *                 LOG_WARNING, LOG_NOTICE, LOG_INFO, and LOG_DEBUG.
+     * @param message A null terminated string containing the log message.
+     *
      * @see Log::set_callback
-     * @see Log
      */
     void default_log_callback (unsigned int priority, const char* message);
 
@@ -141,6 +145,8 @@ namespace iomultiplex {
          *         debug-level message
          *     </dd>
          * </dl>
+         *
+         * @return The current log priority.
          */
         static unsigned int priority () {
             return prio_level;

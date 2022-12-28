@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -44,16 +44,19 @@ namespace iomultiplex {
 
         /**
          * Copy constructor.
+         * @param addr The IpAddr object to copy.
          */
         IpAddr (const IpAddr& addr);
 
         /**
          * Create an IpAddr from a <code>struct sockaddr_in</code>.
+         * @param saddr A sockaddr_in object to copy.
          */
         explicit IpAddr (const struct sockaddr_in& saddr);
 
         /**
          * Create an IpAddr from a <code>struct sockaddr_in6</code>.
+         * @param saddr A sockaddr_in6 object to copy.
          */
         explicit IpAddr (const struct sockaddr_in6& saddr);
 
@@ -66,13 +69,33 @@ namespace iomultiplex {
 
         /**
          * Create an IPv4 address in format <code>a.b.c.d</code>.
+         * @param a First byte in the IPv4 address to copy.
+         * @param b Second byte in the IPv4 address to copy.
+         * @param c Third byte in the IPv4 address to copy.
+         * @param d Fourth byte in the IPv4 address to copy.
          * @param port_num A port number in host byte order.
          */
         IpAddr (uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint16_t port_num=0);
 
         /**
-         * Create an IPv6 address in format <code>a0:a1:a2:a3:a4:a5:a6:a7</code>,
-         * all parts are in host byte order.
+         * Create an IPv6 address in format <code>[a0:a1:a2:a3:a4:a5:a6:a7]</code>.
+         * \note All 16 bit parameters are in host byte order.
+         * @param a0 The highlighted 16 bits in the IPv6 address:
+                     <code>[</code><b><code>a0</code></b><code>:a1:a2:a3:a4:a5:a6:a7]</code>
+         * @param a1 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:</code><b><code>a1</code></b><code>:a2:a3:a4:a5:a6:a7]</code>
+         * @param a2 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:a1:</code><b><code>a2</code></b><code>:a3:a4:a5:a6:a7]</code>
+         * @param a3 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:a1:a2:</code><b><code>a3</code></b><code>:a4:a5:a6:a7]</code>
+         * @param a4 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:a1:a2:a3:</code><b><code>a4</code></b><code>:a5:a6:a7]</code>
+         * @param a5 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:a1:a2:a3:a4:</code><b><code>a5</code></b><code>:a6:a7]</code>
+         * @param a6 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:a1:a2:a3:a4:a5:</code><b><code>a6</code></b><code>:a7]</code>
+         * @param a7 The highlighted 16 bits in the IPv6 address:
+                     <code>[a0:a1:a2:a3:a4:a5:a6:</code><b><code>a7</code></b><code>]</code>
          * @param port_num A port number in host byte order.
          */
         IpAddr (uint16_t a0,
@@ -88,7 +111,7 @@ namespace iomultiplex {
         /**
          * Parse a string and Create an IP address:port.
          * @param address A string containing an IPv[4|6] address and optionally a port number.
-         * @throw std::system_error on parse error.
+         * @throw std::invalid_argument on parse error.
          */
         explicit IpAddr (const std::string& address);
 
@@ -96,7 +119,7 @@ namespace iomultiplex {
          * Parse a string and Create an IP address.
          * @param address A string containing an IPv[4|6] address.
          * @param port_num A port number.
-         * @throw std::system_error on parse error.
+         * @throw std::invalid_argument on parse error.
          */
         explicit IpAddr (const std::string& address, uint16_t port_num);
 
@@ -107,41 +130,55 @@ namespace iomultiplex {
 
         /**
          * Assignment operator.
+         * @param addr The address to copy.
+         * @return A reference to this object.
          */
         IpAddr& operator= (const IpAddr& addr);
 
         /**
          * Assignment operator.
+         * @param saddr The address to copy.
+         * @return A reference to this object.
          */
         IpAddr& operator= (const struct sockaddr_in& saddr);
 
         /**
          * Assignment operator.
+         * @param saddr The address to copy.
+         * @return A reference to this object.
          */
         IpAddr& operator= (const struct sockaddr_in6& saddr);
 
         /**
          * Parse an address from a string.
+         * @param address The string to parse.
+         * @param parse_port If <code>true</code>,
+         *                   also check for a port number in the string.
+         * @return <code>true</code> on success, <code>false</code> on failure.
          */
         bool parse (const std::string& address, const bool parse_port=true);
 
         /**
          * Return the size of the address data.
+         * @return The size of the address data.
          */
         virtual size_t size () const;
 
         /**
          * Return the port number in host byte order.
+         * @return The port number in host byte order.
          */
         uint16_t port () const;
 
         /**
          * Set the port number in host byte order.
+         * @param port_num A port number in host byte order.
          */
         void port (const uint16_t port_num);
 
         /**
          * Return a 32 bit IPv4 address in host byte order.
+         * @return The IPv4 address as a 32 bit integer in host byte order.
          */
         uint32_t ipv4 () const;
 
@@ -154,6 +191,7 @@ namespace iomultiplex {
 
         /**
          * Return a 128 bit IPv6 address in host byte order.
+         * @return A 128 bit IPv6 address in host byte order.
          */
         std::array<uint16_t, 8> ipv6 () const;
 
@@ -166,16 +204,20 @@ namespace iomultiplex {
 
         /**
          * Make a clone of this address object.
+         * @return A copy of this object.
          */
         virtual std::shared_ptr<SockAddr> clone () const;
 
         /**
          * Return a string representation of the IP address.
+         * @return A string representation of the IP address.
          */
         virtual std::string to_string () const;
 
         /**
          * Return a string representation of the IP address (optionally) including port number.
+         * @param include_port If <code>true</code>, include the port number.
+         * @return A string representation of the IP address.
          */
         std::string to_string (bool include_port) const;
     };

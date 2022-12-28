@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -52,6 +52,7 @@ namespace iomultiplex {
         /**
          * Return a pointer to an array of <code>struct pollfd</code>.
          * The size of the array is obtained by the method <code>size()</code>.
+         * @return A pointer to an array of <code>struct pollfd</code>.
          */
         inline struct pollfd* data () {
             return fd_vect.data ();
@@ -61,6 +62,7 @@ namespace iomultiplex {
          * Return the number of active poll descriptors in the vector.
          * An active poll descriptor is a poll descriptor
          * with a file descriptor value >= 0.
+         * @return The number of active poll descriptors in the vector.
          */
         inline size_t size () const {
             return num_active;
@@ -68,6 +70,7 @@ namespace iomultiplex {
 
         /**
          * Return the number of poll descriptors in the vector, including both active and inactive.
+         * @return The total number of poll descriptors in the vector.
          */
         inline size_t capacity () const {
             return fd_vect.size();
@@ -91,6 +94,8 @@ namespace iomultiplex {
 
         /**
          * Deactivate a descriptor in the vector.
+         * @param fd The file descriptor to deactivate.
+         * @param events The events to deactivate.
          * @return <code>true</code> if deactivated, <code>false</code> if not(already inactive or invalid file descriptor).
          */
         bool deactivate (int fd, short events=-1);
@@ -100,8 +105,36 @@ namespace iomultiplex {
          */
         void clear ();
 
+
+        /**
+         * Schedule an operation to activate a descriptor in the vector.
+         * The activation is made when a call to commit() is made.
+         * @param fd The file descriptor to activate.
+         * @param events The events to listen on.
+         *               Typically a combination of
+         *               <code>POLLIN</code> and
+         *               <code>POLLOUT</code>.
+         * @param merge If true, the current event mask is OR'ed with
+         *              the the event mask in <code>events</code>.
+         *              If false, the current event mask is replaced
+         *              the the event mask in <code>events</code>.
+         * @see commit()
+         */
         void schedule_activate (int fd, short events, bool merge=false);
+
+        /**
+         * Schedule an operation to deactivate a descriptor in the vector.
+         * The deactivation is made when a call to commit() is made.
+         * @param fd The file descriptor to deactivate.
+         * @param events The events to deactivate.
+         * @see commit()
+         */
         void schedule_deactivate (int fd, short events=-1);
+
+        /**
+         * Commit all activations and deactivations made by calls to
+         * schedule_activate() and schedule_deactivate().
+         */
         void commit ();
 
 

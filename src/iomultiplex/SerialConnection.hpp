@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -64,10 +64,10 @@ namespace iomultiplex {
          */
         SerialConnection (iohandler_base& io_handler,
                           const std::string& device_filename,
-                          int  baud_rate=115200,
-                          int  data_bits=8,
-                          parity_t = no_parity,
-                          int  stop_bits=1);
+                          int baud_rate=115200,
+                          int data_bits=8,
+                          parity_t parity=no_parity,
+                          int stop_bits=1);
 
         /**
          * Move Constructor.
@@ -76,8 +76,9 @@ namespace iomultiplex {
          * SerialConnection objects.<br/>
          * All read/write operations that has been queued
          * by the object to be moved will be cancelled.
+         * @param sc The SerialConnection object to move.
          */
-        SerialConnection (SerialConnection&& fc);
+        SerialConnection (SerialConnection&& sc);
 
         /**
          * Destructor.
@@ -92,8 +93,10 @@ namespace iomultiplex {
          * SerialConnection objects.<br/>
          * All read/write operations that has been queued by either
          * this object or the object to be moved will be cancelled.
+         * @param sc The SerialConnection object to move.
+         * @return A reference to this object.
          */
-        SerialConnection& operator= (SerialConnection&& fc);
+        SerialConnection& operator= (SerialConnection&& sc);
 
         /**
          * Open a serial device.
@@ -105,19 +108,23 @@ namespace iomultiplex {
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         int open (const std::string& device_filename,
-                  int rate=115200,
-                  int dbits=8,
-                  parity_t p=no_parity,
-                  int sbits=1);
+                  int baud_rate=115200,
+                  int data_bits=8,
+                  parity_t parity=no_parity,
+                  int stop_bits=1);
 
         /**
          * Get the terminal attributes of the serial device.
+         * @param cfg A poiter to a termios_cfg structure to
+         *            store the terminal attributes.
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         int get_cfg (termios_cfg& cfg);
 
         /**
          * Set the terminal attributes of the serial device.
+         * @param cfg A poiter to a termios_cfg structure from
+         *            where to get the terminal attributes.
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         int set_cfg (const termios_cfg& cfg);

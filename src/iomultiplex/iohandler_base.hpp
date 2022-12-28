@@ -96,6 +96,18 @@ namespace iomultiplex {
          * callback will be called.
          * \note This method is normally called by a Connection
          *       object and not called directly.
+         * @param conn The Connection object that wants to read data.
+         * @param buf The start address to where data is stored.
+         * @param size The number of bytes to read.
+         * @param rx_cb Callback to be called when there is a result.
+         *              If <code>nullptr</code>, no callback is called
+         *              when the read operation is finished or has
+         *              timed out.
+         * @param timeout Timeout in miliseconds.
+         * @param dummy_operation If <code>true</code>, no data is
+         *                        actually read. The callback will
+         *                        be called when there is data available
+         *                        to read or if a timeout occurs.
          * @return 0 on success, -1 if the file descriptor isn't valid
          *         the I/O handler is shutting down,
          *         or the file descriptor can't be used in poll/epoll.
@@ -121,6 +133,18 @@ namespace iomultiplex {
          * callback will be called.
          * \note This method is normally called by a Connection
          *       object and not called directly.
+         * @param conn The Connection object that wants to write data.
+         * @param buf The start address from where data is written.
+         * @param size The number of bytes to write.
+         * @param tx_cb A callback to be called when there is a result.
+         *              If <code>nullptr</code>, no callback is called
+         *              when the write operation is finished or has
+         *              timed out.
+         * @param timeout Timeout in miliseconds.
+         * @param dummy_operation If <code>true</code>, no data is
+         *                        actually written. The callback will
+         *                        be called when there is data available
+         *                        to write or if a timeout occurs.
          * @return 0 on success, -1 if the file descriptor isn't valid,
          *         the I/O handler is shutting down,
          *         or the file descriptor can't be used in poll/epoll.
@@ -145,8 +169,16 @@ namespace iomultiplex {
          * specified connection. The pending I/O operations
          * will have a result of -1 and <code>errnum</code>
          * set to <code>ECANCELED</code>.
+         * @param conn The connection for which to cancel
+         *             read and/or write operations.
+         * @param cancel_rx If <code>true</code> (default),
+         *                  cancel all RX operations.
+         * @param cancel_tx If <code>true</code> (default),
+         *                  cancel all TX operations.
          */
-        virtual void cancel (Connection& conn, bool cancel_rx=true, bool cancel_tx=true) = 0;
+        virtual void cancel (Connection& conn,
+                             bool cancel_rx=true,
+                             bool cancel_tx=true) = 0;
 
         /**
          * Check if the I/O handler is running in the same

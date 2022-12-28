@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -59,82 +59,115 @@ namespace iomultiplex {
 
         /**
          * Get the input baud rate.
+         * @return The input baud rate.
          */
         int ispeed ();
+
         /**
          * Set the input baud rate.
+         * @param rate The input baud rate.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int ispeed (int rate);
 
         /**
          * Get the output baud rate.
+         * @return The output baud rate.
          */
         int ospeed ();
+
         /**
          * Set the output baud rate.
+         * @param rate The output baud rate.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int ospeed (int rate);
 
         /**
-         * Get baud rate.
+         * Get the baud rate.
+         * @return The baud rate.
          */
         int speed ();
+
         /**
-         * Set baud rate.
+         * Set the I/O baud rate.
+         * @param rate The I/O baud rate.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int speed (int rate);
 
         /**
          * Get the number of data bits.
+         * @return The number of data bits.
          */
         int data_bits ();
+
         /**
          * Set the number of data bits.
+         * @param num_bits The number of data bits.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int data_bits (int num_bits);
 
         /**
          * Get the number of stop bits.
+         * @return The number of stop bits.
          */
         int stop_bits ();
+
         /**
          * Set the number of stop bits.
+         * @param num_bits The number of stop bits.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int stop_bits (int num_bits);
 
         /**
          * Get parity.
+         * @return The parity.
          */
         parity_t parity ();
+
         /**
          * Set parity.
+         * @param p The parity.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int parity (parity_t p);
 
         /**
          * Check if input characters are echoed.
+         * @return <code>true</code> If input characters are echoed.
          */
         bool echo ();
+
         /**
          * Echo or not echo input characters.
+         * @param e <code>true</code> to echo input characters.
          */
         void echo (bool e);
 
         /**
          * Get XON/XOFF flow control on output.
+         * @return <code>true</code> If XON/XOFF flow control on output.
          */
         bool xonxoff ();
+
         /**
          * Set XON/XOFF flow control on output.
+         * @param on <code>true</code> for XON/XOFF flow control.
          */
         void xonxoff (bool on);
 
         /**
          * Get RTS/CTS (hardware) flow control.
+         * @return <code>true</code> If RTS/CTS (hardware) flow control.
          */
         bool rtscts ();
+
         /**
          * Set RTS/CTS (hardware) flow control.
+         * @param on <code>true</code> for RTS/CTS flow control.
          */
         void rtscts (bool on);
     };

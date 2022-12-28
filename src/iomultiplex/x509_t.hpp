@@ -33,39 +33,107 @@ namespace iomultiplex {
      */
     class x509_t {
     public:
-        x509_t (); /**< Default constructor. */
-        x509_t (X509* x509, bool dont_copy=true, bool free_buffer=false); /**< Constructor.
-                                                                               Copies the x509 object if not nullptr. */
-        x509_t (const x509_t& x509); /**< Copy constructor. */
-        x509_t (x509_t&& x509);      /**< Move constructor. */
-        ~x509_t ();                  /**< Destructor. */
 
-        x509_t& operator= (const x509_t& x509); /**< Assignment operator. */
-        x509_t& operator= (x509_t&& x509);      /**< Move operator. */
+        /**
+         * Default constructor.
+         */
+        x509_t ();
 
-        explicit operator bool() const; /**< Return <code>true</code> if this instance
-                                             have a pointer to an OpenSSL X509 object. */
+        /**
+         * Constructor.
+         * Encapsulate or copy an x509 object.
+         * @param x509 The X509 object to copy. Or <code>nullptr</code> for no copy.
+         * @param dont_copy If <code>true</code>, save the pointer
+         *                  to the X509 object and dont't copy it.
+         *                  If <code>false</code>, make a copy of
+         *                  the X509 object.
+         * @param free_buffer If <code>true</code>, free the encapsulated
+         *                    X509 object when this object is destroyed.
+         *                    Only relevant is parameter <code>dont_copy</code>
+         *                    is <code>true</code>.
+         */
+        x509_t (X509* x509, bool dont_copy=true, bool free_buffer=false);
 
-        int version () const; /**< Get the certificate version. */
-        long serial () const;  /**< Get the certificate serial number. */
-        std::string subject () const;  /**< Get the name of the issuer (if any). */
-        std::string issuer () const;   /**< Get the name of the issuer (if any). */
+        /**
+         * Copy constructor.
+         * @param x509 The object to copy.
+         */
+        x509_t (const x509_t& x509);
 
-        std::string common_name () const; /**< Get the calue of Common Name (if any). */
+        /**
+         * Move constructor.
+         * @param x509 The object to move.
+         */
+        x509_t (x509_t&& x509);
 
-        std::chrono::time_point<std::chrono::system_clock> not_before () const; /**< Get the "Not before" time point. */
-        std::chrono::time_point<std::chrono::system_clock> not_after () const;  /**< Get the "Not after" time point. */
+        /**
+         * Destructor.
+         */
+        ~x509_t ();
 
-        std::string pubkey_algo () const;  /**< Get the public key algorithm (if any). */
-        unsigned    pubkey_size () const;  /**< Get bit size of the public key (if any). */
-        std::string pubkey () const;       /**< Get the public key (if any). */
+        /**
+         * Assignment operator.
+         * @param x509 The object to copy.
+         * @return A reference to this object.
+         */
+        x509_t& operator= (const x509_t& x509);
 
-        std::string sig_algo () const; /**< Get the signature algorithm (if any). */
-        std::string sig () const;      /**< Get the signature (if any). */
+        /**
+         * Move operator.
+         * @param x509 The object to move.
+         * @return A reference to this object.
+         */
+        x509_t& operator= (x509_t&& x509);
 
-        std::string to_string () const; /**< Return the certificate as a readable string. */
+        /**
+         * Return <code>true</code> if this instance
+         * has a pointer to an OpenSSL X509 object.
+         * @return <code>true</code> if this instance
+         *         has a pointer to an OpenSSL X509 object.
+         */
+        explicit operator bool() const;
 
-        const X509* ptr () const { /**< Return a pointer to the OpenSSL X509 object. */
+        /**
+         * Get the certificate version.
+         * @return The certificate version.
+         */
+        int version () const;
+
+        /**
+         * Get the certificate serial number.
+         * @return The certificate serial number.
+         */
+        long serial () const;
+
+        std::string subject () const;  /**< Get the name of the issuer (if any).
+                                        *   @return The name of the issuer (if any). */
+        std::string issuer () const;   /**< Get the name of the issuer (if any).
+                                        *   @return The name of the issuer (if any). */
+        std::string common_name () const; /**< Get the value of Common Name (if any).
+                                           *   @return The value of Common Name (if any). */
+
+        std::chrono::time_point<std::chrono::system_clock> not_before () const; /**< Get the "Not before" time point.
+                                                                                 *   @return The "Not before" time point. */
+        std::chrono::time_point<std::chrono::system_clock> not_after () const;  /**< Get the "Not after" time point.
+                                                                                 *   @return The "Not after" time point. */
+
+        std::string pubkey_algo () const;  /**< Get the public key algorithm (if any).
+                                            *   @return The public key algorithm (if any). */
+        unsigned    pubkey_size () const;  /**< Get the bit size of the public key (if any).
+                                            *   @return The bit size of the public key (if any). */
+        std::string pubkey () const;       /**< Get the public key (if any).
+                                            *   @return The public key (if any). */
+
+        std::string sig_algo () const; /**< Get the signature algorithm (if any).
+                                        *   @return The signature algorithm (if any). */
+        std::string sig () const;      /**< Get the signature (if any).
+                                        *   @return The signature (if any). */
+
+        std::string to_string () const; /**< Return the certificate as a readable string.
+                                         *   @return The certificate as a readable string. */
+
+        const X509* ptr () const { /**< Return a pointer to the OpenSSL X509 object.
+                                    *   @return A pointer to the OpenSSL X509 object. */
             return x;
         }
 

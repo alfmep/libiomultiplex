@@ -63,6 +63,7 @@ namespace iomultiplex {
          * Run the I/O handler until stopped with method 'stop' or an error occurrs.
          * @param start_worker_thread If <code>true</code> start a new thread
          *                            to handle the I/O.
+         * @return 0 on success. -1 on failure and <code>errno</code> is set.
          */
         virtual int run (bool start_worker_thread=false);
 
@@ -82,12 +83,21 @@ namespace iomultiplex {
          * specified connection. The pending I/O operations
          * will have a result of -1 and <code>errnum</code>
          * set to <code>ECANCELED</code>.
+         * @param conn The connection for which to cancel RX/TX operations.
+         * @param cancel_rx If <code>true</code> (default),
+         *                  cancel all RX operations.
+         * @param cancel_tx If <code>true</code> (default),
+         *                  cancel all TX operations.
          */
-        virtual void cancel (Connection& conn, bool cancel_rx=true, bool cancel_tx=true);
+        virtual void cancel (Connection& conn,
+                             bool cancel_rx=true,
+                             bool cancel_tx=true);
 
         /**
          * Check if the I/O handler is running in the same
          * context(i.e. same thread) as the caller.
+         * @return <code>true</code> if the calling thread is
+         *         running in the same thread as the I/O handler.
          */
         virtual bool same_context () const;
 

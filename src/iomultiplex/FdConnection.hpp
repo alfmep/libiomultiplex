@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -59,6 +59,7 @@ namespace iomultiplex {
          * Move Constructor.
          * \note When moving FdConnection objects that has queued read/write
          * operations, those operations will be cancelled.
+         * @param fc The FdConnection object to move.
          */
         FdConnection (FdConnection&& fc);
 
@@ -72,6 +73,8 @@ namespace iomultiplex {
          * Move operator.
          * \note When moving FdConnection objects that has queued read/write
          * operations, those operations will be cancelled.
+         * @param fc The FdConnection object to move.
+         * @return A reference to this object.
          */
         FdConnection& operator= (FdConnection&& fc);
 
@@ -95,6 +98,8 @@ namespace iomultiplex {
 
         /**
          * Cancel I/O operations for this connection.
+         * @param cancel_rx If <code>true</code> (default), cancel all RX operations.
+         * @param cancel_tx If <code>true</code> (default), cancel all TX operations.
          */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 

@@ -82,6 +82,7 @@ namespace iomultiplex {
 
         /**
          * Move constructor.
+         * @param rhs The SocketConnection object to move.
          */
         SocketConnection (SocketConnection&& rhs);
 
@@ -92,6 +93,8 @@ namespace iomultiplex {
 
         /**
          * Move operator.
+         * @param rhs The SocketConnection object to move.
+         * @return A reference to this object.
          */
         SocketConnection& operator= (SocketConnection&& rhs);
 
@@ -118,17 +121,20 @@ namespace iomultiplex {
 
         /**
          * Return the type of socket. Normally SOCK_STREAM or SOCK_DGRAM.
+         * @return The type of socket.
          */
         int type ();
 
         /**
          * Return the socket protocol.
+         * @return The socket protocol.
          */
         int protocol ();
 
         /**
          * Bind to a local address.
          * @param addr The address we want to bind the socket to.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int bind (const SockAddr& addr);
 
@@ -138,18 +144,22 @@ namespace iomultiplex {
          * @param callback A function that is called when the connection
          *                 is finished or has failed.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int connect (const SockAddr& addr, connect_cb_t callback, unsigned timeout=-1);
 
         /**
          * Make a synchronized connection to a remote address.
+         * @param addr The address to connect to.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int connect (const SockAddr& addr, unsigned timeout=-1);
 
         /**
          * Put the socket in listening state.
          * @param backlog Maximum number of pending connections.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int listen (int backlog=5);
 
@@ -158,41 +168,53 @@ namespace iomultiplex {
          * @param callback A function that is called when a new
          *                 incoming connections is made.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
-         * @return 0 on success. -1 if the socket isn't open.
+         * @return 0 on success. -1 on error and <code>errno</code> is set.
          */
         int accept (accept_cb_t callback, unsigned timeout=-1);
 
         /**
          * Accept an incoming connection.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
+         * @return A pointer to a SocketConnection, or nullptr on error.
          */
         std::shared_ptr<SocketConnection> accept (unsigned timeout=-1);
 
         /**
          * Get the local address.
+         * @return The local address.
          */
         const SockAddr& addr () const;
 
         /**
          * Get the address of the peer we send to.
-         * Return the address of the peer we are communicating with.
+         * @return the address of the peer we are communicating with.
          */
         const SockAddr& peer () const;
 
         /**
          * Is the socket connected?
+         * @return <code>true</code> if the socket is connected to a peer.
          */
         const bool is_connected () const;
 
         /**
          * Is the socket bound to a local address?
+         * @return <code>true</code> if the socket is bound to a local address.
          */
         const bool is_bound () const;
 
+        /**
+         * Set a default RX callback.
+         * @param rx_cb The default RX callback.
+         */
         void default_sock_rx_callback (peer_io_callback_t rx_cb) {
             def_sock_rx_cb = rx_cb;
         }
 
+        /**
+         * Set a default TX callback.
+         * @param tx_cb The default TX callback.
+         */
         void default_sock_tx_callback (peer_io_callback_t tx_cb) {
             def_sock_tx_cb = tx_cb;
         }
@@ -214,6 +236,10 @@ namespace iomultiplex {
 
         /**
          * Synchronized wait for a message from the socket
+         * @param buf The buffer where to store the data.
+         * @param size The maximum number of bytes to read.
+         * @param timeout A timeout in milliseconds. If -1, no timeout is set.
+         * @return A pointer to a socket address, or nullptr if no message was received.
          */
         std::shared_ptr<SockAddr> recvfrom (void* buf, ssize_t& size, unsigned timeout=-1);
 
@@ -222,6 +248,7 @@ namespace iomultiplex {
          * This is mainly used for datagram(UDP) sockets.
          * @param buf The buffer from where to write data.
          * @param size The maximum number of bytes to write.
+         * @param peer The address to receive the data.
          * @param tx_cb A callback to be called when the data is written,
          *              or <code>nullptr</code> for no callback.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
@@ -233,6 +260,11 @@ namespace iomultiplex {
                     peer_io_callback_t tx_cb, unsigned timeout=-1);
         /**
          * Synchronized send a message to a peer.
+         * @param buf The buffer from where to write data.
+         * @param size The maximum number of bytes to write.
+         * @param peer The address to receive the data.
+         * @param timeout A timeout in milliseconds. If -1, no timeout is set.
+         * @return The number of bytes sent, or -1 on error and <code>errno</code> is set.
          */
         ssize_t sendto (const void* buf, size_t size, const SockAddr& peer, unsigned timeout=-1);
 
