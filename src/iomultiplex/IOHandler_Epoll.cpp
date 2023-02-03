@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -77,6 +77,10 @@
 
 
 namespace iomultiplex {
+
+
+    std::map<int, unsigned> IOHandler_Epoll::sigaction_count;
+    std::mutex IOHandler_Epoll::sigaction_mutex;
 
 
     constexpr static pid_t invalid_pid = (pid_t) -1;
@@ -240,39 +244,53 @@ namespace iomultiplex {
           fd_map_entry_removed {std::make_pair(-1, false)},
           currently_handled_fd {-1}
     {
-        // Block signal 'ctl_signal'
-        sigset_t ctl_sigset;
-        sigemptyset (&ctl_sigset);
-        sigaddset (&ctl_sigset, ctl_signal);
-        if (sigprocmask(SIG_BLOCK, &ctl_sigset, &orig_sigmask) < 0) {
-            int errnum = errno;
-            TRACE ("IOHandler_Epoll: Unable to set signal mask: %s", strerror(errno));
-            throw std::system_error (errnum, std::system_category(),
-                                     "Unable to set signal mask");
+        std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
+
+        auto tmp_entry = sigaction_count.try_emplace(ctl_signal, 0).first;
+        if (tmp_entry->second++ == 0) {
+            // Block signal 'ctl_signal'
+            sigset_t ctl_sigset;
+            sigemptyset (&ctl_sigset);
+            sigaddset (&ctl_sigset, ctl_signal);
+            if (sigprocmask(SIG_BLOCK, &ctl_sigset, &orig_sigmask) < 0) {
+                int errnum = errno;
+                sigaction_count.erase (tmp_entry);
+                TRACE ("IOHandler_Epoll: Unable to set signal mask: %s", strerror(errnum));
+                throw std::system_error (errnum, std::system_category(),
+                                         "Unable to set signal mask");
+            }
+
+            // Install signal handler used for modifying the poll descriptors
+            //
+            TRACE_SIG ("Install handler for signal #%d", ctl_signal);
+            struct sigaction sa;
+            memset (&sa, 0, sizeof(sa));
+            sigemptyset (&sa.sa_mask);
+            sa.sa_flags = SA_SIGINFO;
+            sa.sa_sigaction = ctl_signal_handler;
+
+            if (sigaction(ctl_signal, &sa, &orig_sa) < 0) {
+                int errnum = errno;
+                TRACE ("IOHandler_Epoll: Unable to install signal handler: %s", strerror(errno));
+                sigaction_count.erase (tmp_entry);
+                sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+                throw std::system_error (errnum, std::system_category(),
+                                         "Unable to install signal handler");
+            }
         }
 
-        // Install signal handler used for modifying the poll descriptors
-        //
-        TRACE_SIG ("Install handler for signal #%d", ctl_signal);
-        struct sigaction sa;
-        memset (&sa, 0, sizeof(sa));
-        sigemptyset (&sa.sa_mask);
-        sa.sa_flags = SA_SIGINFO;
-        sa.sa_sigaction = ctl_signal_handler;
-
-        if (sigaction(ctl_signal, &sa, &orig_sa) < 0) {
-            int errnum = errno;
-            TRACE ("IOHandler_Epoll: Unable to install signal handler: %s", strerror(errno));
-            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
-            throw std::system_error (errnum, std::system_category(),
-                                     "Unable to install signal handler");
-        }
-
-        // Create epoll control descriptor
+        // Create the epoll control descriptor
         //
         ctl_fd = epoll_create1 (EPOLL_CLOEXEC);
         if (ctl_fd < 0) {
-            throw std::system_error (errno,
+            int errnum = errno;
+            if (--tmp_entry->second == 0) {
+                sigaction_count.erase (tmp_entry);
+                sigaction (ctl_signal, &orig_sa, nullptr);
+                sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+            }
+            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+            throw std::system_error (errnum,
                                      std::system_category(),
                                      "epoll_create failed");
         }
@@ -288,12 +306,18 @@ namespace iomultiplex {
         if (ctl_fd >= 0)
             close (ctl_fd);
 
-        // Reset the command signal handler
-        TRACE_SIG ("Uninstall handler for signal #%d", ctl_signal);
-        sigaction (ctl_signal, &orig_sa, nullptr);
+        std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
 
-        // Restore the original signal mask
-        sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+        auto tmp_entry = sigaction_count.find (ctl_signal);
+        if (tmp_entry!=sigaction_count.end() && --tmp_entry->second == 0) {
+            sigaction_count.erase (tmp_entry);
+            // Reset the command signal handler
+            TRACE_SIG ("Uninstall handler for signal #%d", ctl_signal);
+            sigaction (ctl_signal, &orig_sa, nullptr);
+
+            // Restore the original signal mask
+            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+        }
     }
 
 

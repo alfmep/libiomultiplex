@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -73,6 +73,9 @@
 
 namespace iomultiplex {
 
+
+    std::map<int, unsigned> IOHandler_Poll::sigaction_count;
+    std::mutex IOHandler_Poll::sigaction_mutex;
 
 
 #ifdef TRACE_DEBUG
@@ -226,32 +229,38 @@ namespace iomultiplex {
     {
         state = state_t::stopped;
 
-        // Block signal 'cmd_signal'
-        sigset_t cmd_sigset;
-        sigemptyset (&cmd_sigset);
-        sigaddset (&cmd_sigset, cmd_signal);
-        if (sigprocmask(SIG_BLOCK, &cmd_sigset, &orig_sigmask) < 0) {
-            int errnum = errno;
-            TRACE ("IOHandler_Poll: Unable to set signal mask: %s", strerror(errno));
-            throw std::system_error (errnum, std::generic_category(),
-                                     "Unable to set signal mask");
-        }
+        std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
+        auto tmp_entry = sigaction_count.try_emplace(cmd_signal, 0).first;
+        if (tmp_entry->second++ == 0) {
+            // Block signal 'cmd_signal'
+            sigset_t cmd_sigset;
+            sigemptyset (&cmd_sigset);
+            sigaddset (&cmd_sigset, cmd_signal);
+            if (sigprocmask(SIG_BLOCK, &cmd_sigset, &orig_sigmask) < 0) {
+                int errnum = errno;
+                sigaction_count.erase (tmp_entry);
+                TRACE ("IOHandler_Poll: Unable to set signal mask: %s", strerror(errnum));
+                throw std::system_error (errnum, std::generic_category(),
+                                         "Unable to set signal mask");
+            }
 
-        // Install signal handler used for modifying the poll descriptors
-        //
-        TRACE_SIG ("Install handler for signal #%d", cmd_signal);
-        struct sigaction sa;
-        memset (&sa, 0, sizeof(sa));
-        sigemptyset (&sa.sa_mask);
-        sa.sa_flags = SA_SIGINFO;
-        sa.sa_sigaction = cmd_signal_handler;
+            // Install signal handler used for modifying the poll descriptors
+            //
+            TRACE_SIG ("Install handler for signal #%d", cmd_signal);
+            struct sigaction sa;
+            memset (&sa, 0, sizeof(sa));
+            sigemptyset (&sa.sa_mask);
+            sa.sa_flags = SA_SIGINFO;
+            sa.sa_sigaction = cmd_signal_handler;
 
-        if (sigaction(cmd_signal, &sa, &orig_sa) < 0) {
-            int errnum = errno;
-            TRACE ("IOHandler_Poll: Unable to install signal handler: %s", strerror(errno));
-            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
-            throw std::system_error (errnum, std::generic_category(),
-                                     "Unable to install signal handler");
+            if (sigaction(cmd_signal, &sa, &orig_sa) < 0) {
+                int errnum = errno;
+                TRACE ("IOHandler_Poll: Unable to install signal handler: %s", strerror(errnum));
+                sigaction_count.erase (tmp_entry);
+                sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+                throw std::system_error (errnum, std::generic_category(),
+                                         "Unable to install signal handler");
+            }
         }
     }
 
@@ -263,12 +272,18 @@ namespace iomultiplex {
         stop ();
         join ();
 
-        // Reset the command signal handler
-        TRACE_SIG ("Uninstall handler for signal #%d", cmd_signal);
-        sigaction (cmd_signal, &orig_sa, nullptr);
+        std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
 
-        // Reset the signal mask
-        sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+        auto tmp_entry = sigaction_count.find (cmd_signal);
+        if (tmp_entry!=sigaction_count.end() && --tmp_entry->second == 0) {
+            sigaction_count.erase (tmp_entry);
+            // Reset the command signal handler
+            TRACE_SIG ("Uninstall handler for signal #%d", cmd_signal);
+            sigaction (cmd_signal, &orig_sa, nullptr);
+
+            // Restore the original signal mask
+            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
+        }
     }
 
 

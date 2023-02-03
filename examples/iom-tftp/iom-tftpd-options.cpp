@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -81,7 +81,7 @@ void appargs_t::print_usage (std::ostream& out)
     out << "                                 This overrides any port in option --bind." << std::endl;
     out << "  -m, --max-clients=<num>        Maximum number of concurrent clients." << std::endl;
     out << "                                 A value of 0 means no limit." << " Default is "<< default_max_clients << '.' << std::endl;
-    out << "  -n, --worker-threads=<num>     Number of worker threads. Default is 1, max value is " << (SIGRTMAX-SIGRTMIN+1) << "." << std::endl;
+    out << "  -n, --worker-threads=<num>     Number of worker threads. Default is 1." << std::endl;
     out << "  -u, --user=<user_id>           When the server is initialized, drop user privileges to this user." << std::endl;
     out << "  -g, --group=<group_id>         When the server is initialized, drop group privileges to this group." << std::endl;
     out << "  -i, --pid-file=<filename>      Create a pid file." << std::endl;
@@ -189,7 +189,7 @@ int appargs_t::parse_args (int argc, char* argv[])
 
         case 'n':
             num_workers = atoi (optarg);
-            if (num_workers<=0 || num_workers>(SIGRTMAX-SIGRTMIN+1)) {
+            if (num_workers<=0) {
                 std::cerr << "Error: Invalid value to argument '--worker-threads'" << std::endl;
                 return -1;
             }

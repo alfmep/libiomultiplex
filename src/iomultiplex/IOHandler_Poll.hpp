@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -169,6 +169,9 @@ namespace iomultiplex {
         void handle_event (int fd, bool read, short error_flags);
         void io_dispatch ();
         void signal_event ();
+
+        static std::map<int, unsigned> sigaction_count;
+        static std::mutex sigaction_mutex;
     };
 
 

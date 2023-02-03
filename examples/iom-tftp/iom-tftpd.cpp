@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -156,7 +156,7 @@ static void stdout_logger (unsigned prio, const char* msg)
 static int get_uid (const std::string& user, uid_t& uid)
 {
     struct passwd* pwd = nullptr;
-    errno = 0;
+
     try {
         pwd = getpwuid ((uid_t)std::stol(user));
     }
@@ -176,7 +176,7 @@ static int get_uid (const std::string& user, uid_t& uid)
 static int get_gid (const std::string& group, gid_t& gid)
 {
     struct group* pwd = nullptr;
-    errno = 0;
+
     try {
         pwd = getgrgid ((uid_t)std::stol(group));
     }
@@ -267,6 +267,7 @@ static int daemonize (appstate_t& app)
 //------------------------------------------------------------------------------
 static bool set_privileges (appstate_t& app)
 {
+    errno = 0;
     // Get uid and gid from application arguments
     if (!app.opt.user.empty() && get_uid(app.opt.user, app.uid)) {
         iom::Log::error ("Unable to set user id: %s",
@@ -282,7 +283,6 @@ static bool set_privileges (appstate_t& app)
     // Set group id
     if (app.gid != getgid()) {
         iom::Log::debug ("Setting group id to %u", (unsigned(app.gid)));
-        errno = 0;
         if (setgid(app.gid)) {
             iom::Log::error ("Unable to set group id: %s", strerror(errno));
             return -1;
@@ -291,7 +291,6 @@ static bool set_privileges (appstate_t& app)
 
     // Set user id
     if (app.uid != getuid()) {
-        errno = 0;
         iom::Log::debug ("Setting user id to %u", (unsigned(app.uid)));
         if (setuid(app.uid)) {
             iom::Log::error ("Unable to set user id: %s", strerror(errno));
@@ -307,27 +306,33 @@ static bool set_privileges (appstate_t& app)
 //------------------------------------------------------------------------------
 static int create_io_workers (appstate_t& app)
 {
-    for (int i=0; i<app.opt.num_workers; ++i) {
-        // Create a new I/O handler
-        app.workers.emplace_back (std::make_unique<iom::default_iohandler>(SIGRTMIN+i));
-        //app.workers.emplace_back (std::make_unique<iom::IOHandler_Poll>(SIGRTMIN+i));
-        auto& ioh = *app.workers.back();
+    try {
+        for (int i=0; i<app.opt.num_workers; ++i) {
+            // Create a new I/O handler
+            app.workers.emplace_back (std::make_unique<iom::default_iohandler>());
+            auto& ioh = *app.workers.back();
 
-        // Create new socket listener
-        app.listeners.emplace_back (iom::SocketConnection(ioh));
-        auto& sock = app.listeners.back();
+            // Create new socket listener
+            app.listeners.emplace_back (iom::SocketConnection(ioh));
+            auto& sock = app.listeners.back();
 
-        if (sock.open(app.opt.bind_addr.family(), SOCK_DGRAM) == 0) {
-            // Set SO_REUSEPORT so all worker threads
-            // can bind to the same local port
-            if (sock.setsockopt(SO_REUSEPORT, 1) == 0)
-                sock.bind (app.opt.bind_addr);
-        }
-        if (errno) {
-            iom::Log::error ("Unable to open/bind socket: %s", strerror(errno));
-            return 1;
+            if (sock.open(app.opt.bind_addr.family(), SOCK_DGRAM) == 0) {
+                // Set SO_REUSEPORT so all worker threads
+                // can bind to the same local port
+                if (sock.setsockopt(SO_REUSEPORT, 1) == 0)
+                    sock.bind (app.opt.bind_addr);
+            }
+            if (errno) {
+                iom::Log::error ("Unable to open/bind socket: %s", strerror(errno));
+                return 1;
+            }
         }
     }
+    catch (std::exception& e) {
+        iom::Log::error ("Unable to create an I/O handler: %s", e.what());
+        return 1;
+    }
+
     return 0;
 }
 
