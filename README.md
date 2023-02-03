@@ -5,7 +5,7 @@ libiomultiplex is a C++ library for handling asynchronous or synchronous input a
 
 ## How to build and install
 
-In no configure script is present, first run:
+If no configure script is present, first run:
 ```
 ./autogen.sh
 ```
