@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -31,6 +31,7 @@ namespace iomultiplex {
 
     /**
      * A timer that deliveres timer expiration notifications via a callback.
+     * @see TimerSet
      */
     class TimerConnection : public FdConnection {
     public:

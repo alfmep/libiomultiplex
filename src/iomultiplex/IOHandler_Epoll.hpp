@@ -102,9 +102,14 @@ namespace iomultiplex {
         virtual bool same_context () const;
 
         /**
-         * If the I/O handler is run in a worker thread,
-         * wait for the worker thread to terminate.
+         * If the I/O handler has a worker thread running,
+         * block until the worker thread is terminated.
          * If not, return immediately.
+         * \note If the I/O handler has a worker thread
+         *       running, and this method is called from
+         *       within that thread, it will cause a deadlock
+         *       and the application will probably terminate
+         *       with an error.
          */
         virtual void join ();
 

@@ -110,6 +110,11 @@ namespace iomultiplex {
          * If the I/O handler has a worker thread running,
          * block until the worker thread is terminated.
          * If not, return immediately.
+         * \note If the I/O handler has a worker thread
+         *       running, and this method is called from
+         *       within that thread, it will cause a deadlock
+         *       and the application will probably terminate
+         *       with an error.
          */
         virtual void join ();
 

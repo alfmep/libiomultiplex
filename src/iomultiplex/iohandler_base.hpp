@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -81,7 +81,7 @@ namespace iomultiplex {
         /**
          * Stop the I/O handler.
          * All pending I/O operations are cancelled.
-         * \note If the I/O handler is run in a worker thread,
+         * \note If the I/O handler has a worker thread running,
          * the worker thread is signaled to stop and this
          * method returns immediately. To block until the worker
          * thread is stopped, call method <code>join()</code>.
@@ -192,6 +192,11 @@ namespace iomultiplex {
          * If the I/O handler has a worker thread running,
          * block until the worker thread is terminated.
          * If not, return immediately.
+         * \note If the I/O handler has a worker thread
+         *       running, and this method is called from
+         *       within that thread, it will cause a deadlock
+         *       and the application will probably terminate
+         *       with an error.
          */
         virtual void join () = 0;
 
