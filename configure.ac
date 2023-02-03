@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -139,11 +139,12 @@ AC_SUBST([TLS_ADAPTER_HEADER_FILES])
 
 
 #
-# Give the user an option to build doxygen documentation
+# Give the user an option to disable doxygen documentation
 #
 AC_ARG_ENABLE([doxygen],
-	[AS_HELP_STRING([--enable-doxygen], [build doxygen documentation, if possible])],,
-	enable_doxygen=no)
+	[AS_HELP_STRING([--disable-doxygen],
+	[disable doxygen documentation [default=auto]])],,
+	enable_doxygen=yes)
 AM_CONDITIONAL([ENABLE_DOXYGEN_SET], [test "x$enable_doxygen" != "xno"])
 
 
