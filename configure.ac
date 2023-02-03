@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-AC_INIT([libiomultiplex], [0.1.2], [iomultiplex@ultramarin.se])
+AC_INIT([libiomultiplex], [0.1.3], [dan@ultramarin.se])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign dist-bzip2 subdir-objects])
 
 AC_PROG_CC
@@ -31,11 +31,10 @@ LT_INIT()
 LT_LANG([C++])
 
 AC_CONFIG_MACRO_DIR([m4])
-#AC_CONFIG_HEADERS(src/include/iomultiplex/config.h src/include/iomultiplex/iomultiplex_config.hpp)
 AM_SILENT_RULES([yes])
 
 #
-# Release 0.1.2
+# Release 0.1.3
 #
 # Library interface version x:y:z
 #                           | | |
@@ -47,7 +46,7 @@ AM_SILENT_RULES([yes])
 #
 # Library version (CURRENT:REVISION:AGE)
 #
-LIBRARY_VERSION=0:0:0
+LIBRARY_VERSION=1:3:1
 AC_SUBST([LIBRARY_VERSION])
 
 #
