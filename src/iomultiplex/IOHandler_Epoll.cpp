@@ -79,13 +79,13 @@
 namespace iomultiplex {
 
 
-    std::map<int, unsigned> IOHandler_Epoll::sigaction_count;
+    IOHandler_Epoll::sigaction_map_t IOHandler_Epoll::sigaction_map;
     std::mutex IOHandler_Epoll::sigaction_mutex;
 
 
     constexpr static pid_t invalid_pid = (pid_t) -1;
 
-    __thread pid_t IOHandler_Epoll::caller_pid {invalid_pid};
+    __thread pid_t IOHandler_Epoll::caller_tid {invalid_pid};
 
 
     //--------------------------------------------------------------------------
@@ -208,15 +208,15 @@ namespace iomultiplex {
 
         virtual ~ioop_t ();
 
-        io_callback_t   cb;         /**< Callback to be called when the operation is done. */
-        bool            dummy_op;   /**< A dummy operation, don't actually try to read or write anything. */
-        struct timespec timeout;    /**< Timeout value. */
-        timeout_map_t& timeout_map; /**< A reference to the map holding this instance. */
+        io_callback_t   cb;         // Callback to be called when the operation is done.
+        bool            dummy_op;   // A dummy operation, don't actually try to read or write anything.
+        struct timespec timeout;    // Timeout value.
+        timeout_map_t& timeout_map; // A reference to the timeout map holding this instance.
         timeout_map_t::iterator timeout_map_pos; // Position of this instance in timeout_map
 
         // Make it easy to erase an ioop_t object from the IOHandler_Epolls containers
         bool is_rx;
-        ioop_list_t::iterator ioop_list_pos; // Position in ioop list (tx or rx)
+        ioop_list_t::iterator ioop_list_pos; // Position in ioop list (tx list or rx list)
         fd_ops_map_t::iterator ops_map_pos;  // Position in file_desc->ioop_lists map
     };
 
@@ -234,33 +234,20 @@ namespace iomultiplex {
 
 
     //--------------------------------------------------------------------------
+    // Initialize the control signal handler used for interrupting epoll_pwait().
     //--------------------------------------------------------------------------
-    IOHandler_Epoll::IOHandler_Epoll (int signal_num)
-        : ctl_fd {-1},
-          ctl_signal {signal_num},
-          quit {true},
-          worker_pid {invalid_pid},
-          state {state_t::stopped},
-          fd_map_entry_removed {std::make_pair(-1, false)},
-          currently_handled_fd {-1}
+    void IOHandler_Epoll::initialize_sig_handler (const int ctl_signal)
     {
         std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
 
-        auto tmp_entry = sigaction_count.try_emplace(ctl_signal, 0).first;
-        if (tmp_entry->second++ == 0) {
-            // Block signal 'ctl_signal'
-            sigset_t ctl_sigset;
-            sigemptyset (&ctl_sigset);
-            sigaddset (&ctl_sigset, ctl_signal);
-            if (sigprocmask(SIG_BLOCK, &ctl_sigset, &orig_sigmask) < 0) {
-                int errnum = errno;
-                sigaction_count.erase (tmp_entry);
-                TRACE ("IOHandler_Epoll: Unable to set signal mask: %s", strerror(errnum));
-                throw std::system_error (errnum, std::system_category(),
-                                         "Unable to set signal mask");
-            }
+        struct sigaction new_sa;
+        memset (&new_sa, 0, sizeof(new_sa));
+        auto sa_map_entry = sigaction_map.try_emplace(ctl_signal, std::make_pair(0, new_sa)).first;
 
-            // Install signal handler used for modifying the poll descriptors
+        if (sa_map_entry->second.first++ == 0) {
+            struct sigaction& orig_sa = sa_map_entry->second.second;
+
+            // Install signal handler used for interrupting epoll_pwait().
             //
             TRACE_SIG ("Install handler for signal #%d", ctl_signal);
             struct sigaction sa;
@@ -269,31 +256,84 @@ namespace iomultiplex {
             sa.sa_flags = SA_SIGINFO;
             sa.sa_sigaction = ctl_signal_handler;
 
-            if (sigaction(ctl_signal, &sa, &orig_sa) < 0) {
-                int errnum = errno;
-                TRACE ("IOHandler_Epoll: Unable to install signal handler: %s", strerror(errno));
-                sigaction_count.erase (tmp_entry);
-                sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
-                throw std::system_error (errnum, std::system_category(),
+            if (sigaction(sa_map_entry->first, &sa, &orig_sa) < 0) {
+                throw std::system_error (errno, std::system_category(),
                                          "Unable to install signal handler");
             }
         }
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::restore_sig_handler (const int ctl_signal)
+    {
+        std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
+
+        auto sa_map_entry = sigaction_map.find (ctl_signal);
+        if (sa_map_entry!=sigaction_map.end() && --sa_map_entry->second.first == 0) {
+            // Restore the original signal handler
+            auto& orig_sa = sa_map_entry->second.second;
+            sigaction (ctl_signal, &orig_sa, nullptr);
+            sigaction_map.erase (sa_map_entry);
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    int IOHandler_Epoll::initialize_ctl_signal ()
+    {
+        // First, Get the original signal mask
+        sigprocmask (SIG_BLOCK, nullptr, &orig_sigmask);
+        // Then, make sure the control signal is unblocked during epoll_pwait
+        memcpy (&epoll_sigmask, &orig_sigmask, sizeof(sigset_t));
+        sigdelset (&epoll_sigmask, ctl_signal);
+
+        // Now block the control signal used for interrupting epoll_pwait().
+        sigset_t ctl_sigset;
+        sigemptyset (&ctl_sigset);
+        sigaddset (&ctl_sigset, ctl_signal);
+        return sigprocmask (SIG_BLOCK, &ctl_sigset, nullptr);
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::restore_ctl_signal ()
+    {
+        sigprocmask (SIG_BLOCK, &orig_sigmask, nullptr);
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    IOHandler_Epoll::IOHandler_Epoll (const int signal_num,
+                                      const int max_events_hint)
+        : ctl_fd {-1},
+          ctl_signal {signal_num},
+          ctl_max_events {max_events_hint},
+          state {state_t::stopped},
+          quit {true},
+          worker_tid {invalid_pid},
+          worker_tgid {invalid_pid},
+          fd_map_entry_removed {std::make_pair(-1, false)},
+          currently_handled_fd {-1}
+    {
+        if (ctl_max_events <= 0)
+            throw std::system_error (EINVAL, std::system_category(),
+                                     "Invalid value to parameter max_events_hint");
 
         // Create the epoll control descriptor
         //
         ctl_fd = epoll_create1 (EPOLL_CLOEXEC);
         if (ctl_fd < 0) {
-            int errnum = errno;
-            if (--tmp_entry->second == 0) {
-                sigaction_count.erase (tmp_entry);
-                sigaction (ctl_signal, &orig_sa, nullptr);
-                sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
-            }
-            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
-            throw std::system_error (errnum,
+            throw std::system_error (errno,
                                      std::system_category(),
                                      "epoll_create failed");
         }
+
+        initialize_sig_handler (ctl_signal);
     }
 
 
@@ -305,28 +345,16 @@ namespace iomultiplex {
         join ();
         if (ctl_fd >= 0)
             close (ctl_fd);
-
-        std::lock_guard<std::mutex> sig_lock (sigaction_mutex);
-
-        auto tmp_entry = sigaction_count.find (ctl_signal);
-        if (tmp_entry!=sigaction_count.end() && --tmp_entry->second == 0) {
-            sigaction_count.erase (tmp_entry);
-            // Reset the command signal handler
-            TRACE_SIG ("Uninstall handler for signal #%d", ctl_signal);
-            sigaction (ctl_signal, &orig_sa, nullptr);
-
-            // Restore the original signal mask
-            sigprocmask (SIG_SETMASK, &orig_sigmask, nullptr);
-        }
+        restore_sig_handler (ctl_signal);
     }
 
 
     //--------------------------------------------------------------------------
-    // Assume ops_mutex is locked !!!
+    // ops_mutex is locked
     // Return:
-    //   -1 - error starting
-    //   0  - starting in same thread
-    //   1  - starting in new thread
+    //  -1 - error starting
+    //   0 - starting in same thread
+    //   1 - starting in new thread
     //--------------------------------------------------------------------------
     int IOHandler_Epoll::start_running (bool start_worker_thread,
                                         std::unique_lock<std::mutex>& ops_lock)
@@ -346,13 +374,13 @@ namespace iomultiplex {
             }
             state = state_t::stopped;
             worker = std::thread ([this](){
-                    // Run this method in a new worker thread
-                    run (false);
-                });
+                // Call run() from the worker thread
+                run (false);
+            });
 
             ops_lock.unlock ();
-            while (worker_pid == invalid_pid)
-                ; // Busy-wait until the thread has started
+            while (worker_tid == invalid_pid)
+                ; // Busy-wait until the worker thread has found its thread id
             errno = 0;
             return 1; // Started I/O handler in a worker thread
         }
@@ -366,63 +394,81 @@ namespace iomultiplex {
     int IOHandler_Epoll::run (bool start_worker_thread)
     {
         std::unique_lock<std::mutex> ops_lock (ops_mutex);
+
         int progress = start_running (start_worker_thread, ops_lock);
-        if (progress)
+        if (progress) {
+            // progress == -1: Error, return -1 and errno is set
+            // progress ==  1: a worker thread was created in start_running(),
+            //                 return 0 (success)
             return progress<0 ? -1 : 0;
+        }
+        // progress == 0: run() is called either without a worker thread,
+        //                or from the worker thread created in start_running()
 
         quit = false;
         state = state_t::running;
-        worker_pid = (pid_t) syscall (SYS_gettid);
+        worker_tgid = getpid ();
+        worker_tid = (pid_t) syscall (SYS_gettid);
+        initialize_ctl_signal ();
 
         TRACE ("Start processing I/O");
 
         // Poll until instructed to stop (or poll itself fails)
         //
         int errnum = 0;
-        struct epoll_event events[32];
-        int max_events = sizeof(events)/sizeof(events[0]);
+        struct epoll_event events[ctl_max_events];
 
         while (!quit) {
-            struct timespec ts;
             int timeout = next_timeout ();
-#ifdef TRACE_DEBUG_POLL
-            if (timeout > -1)
-                TRACE_POLL ("Poll timeout in %d ms", timeout);
-            TRACE_POLL ("start epoll_pwait");
-#endif
+            TRACE_POLL ("start epoll_pwait, timeout value: %d", timeout);
+
             ops_lock.unlock ();
             auto num_events = epoll_pwait (ctl_fd,
                                            events,
-                                           max_events,
+                                           ctl_max_events,
                                            timeout,
-                                           &orig_sigmask);
+                                           &epoll_sigmask);
             ops_lock.lock ();
-
-            if (timeout > -1)
-                clock_gettime (CLOCK_MONOTONIC, &ts);
 
             TRACE_POLL ("epoll_pwait result: %d", num_events);
 
+            // I/O operations might have been
+            // cancelled while epoll_wait() slept
+            handle_cancelled_ops ();
+
             if (num_events < 0) {
                 if (errno != EINTR) {
+                    // epoll_pwait() failed !!!
                     errnum = errno;
                     quit = true;
                     TRACE ("IOHandler_Epoll: error polling I/O: %s", strerror(errnum));
+                }else{
+                    ; // epoll_pwait() was interrupted to recalculate the timeout
                 }
             }
             else if (num_events > 0) {
                 io_dispatch (events, num_events);
+                // I/O operations might have been
+                // cancelled in io_dispatch()
+                handle_cancelled_ops ();
             }
             else if (!timeout_map.empty()) {
+                struct timespec ts;
+                clock_gettime (CLOCK_MONOTONIC, &ts);
                 handle_timeout (ts);
+                // I/O operations might have been
+                // cancelled in handle_timeout()
+                handle_cancelled_ops ();
             }
         }
         state = state_t::stopping;
 
         // clean up
         end_running ();
+        restore_ctl_signal ();
         TRACE ("Finished processing I/O ");
-        worker_pid = invalid_pid;
+        worker_tgid = invalid_pid;
+        worker_tid = invalid_pid;
         errno = errnum;
         state = state_t::stopped;
         return errno==0 ? 0 : -1;
@@ -432,47 +478,48 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     // Assume ops_mutex is locked !!!
     //--------------------------------------------------------------------------
+    void IOHandler_Epoll::call_ioop_cb (ioop_t& ioop, const ssize_t result, const int errnum)
+    {
+        if (ioop.cb) {
+            ioop.result = result;
+            ioop.errnum = errnum;
+            ops_mutex.unlock ();
+            ioop.cb (ioop);
+            ops_mutex.lock ();
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Assume ops_mutex is locked !!!
+    //--------------------------------------------------------------------------
     void IOHandler_Epoll::end_running ()
     {
-        timeout_map.clear ();
-
         for (auto& entry : ops_map) {
-            for (auto& ioop : entry.RX_LIST) {
-                // Cancel RX operations
-                if (ioop->cb) {
-                    ioop->result = -1;
-                    ioop->errnum = ECANCELED;
-                    ops_mutex.unlock ();
-                    ioop->cb (*ioop);
-                    ops_mutex.lock ();
-                }
-            }
+            // Cancel RX operations
+            for (auto& ioop : entry.RX_LIST)
+                call_ioop_cb (*ioop, -1, ECANCELED);
             entry.RX_LIST.clear ();
 
-            for (auto& ioop : entry.TX_LIST) {
-                // Cancel TX operations
-                if (ioop->cb) {
-                    ioop->result = -1;
-                    ioop->errnum = ECANCELED;
-                    ops_mutex.unlock ();
-                    ioop->cb (*ioop);
-                    ops_mutex.lock ();
-                }
-            }
+            // Cancel TX operations
+            for (auto& ioop : entry.TX_LIST)
+                call_ioop_cb (*ioop, -1, ECANCELED);
             entry.TX_LIST.clear ();
         }
+
+        rx_cancel_map.clear ();
+        tx_cancel_map.clear ();
         ops_map.clear ();
     }
 
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler_Epoll::signal_event ()
+    void IOHandler_Epoll::interrupt_epoll ()
     {
-        if (worker_pid != invalid_pid) {
-            TRACE_SIG ("Send signal %d to thread id %u", ctl_signal, (unsigned)worker_pid);
-            pid_t tgid = getpid ();
-            int err = syscall (SYS_tgkill, tgid, worker_pid, ctl_signal);
+        if (worker_tid != invalid_pid) {
+            TRACE_SIG ("Send signal %d to thread id %u", ctl_signal, (unsigned)worker_tid);
+            int err = syscall (SYS_tgkill, worker_tgid, worker_tid, ctl_signal);
             if (err)
                 Log::info ("IOHandler_Epoll: Unable to raise command signal: %s", strerror(err));
         }
@@ -486,7 +533,7 @@ namespace iomultiplex {
         if (!quit.exchange(true)) {
             TRACE ("Quitting I/O handling");
             if (!same_context())
-                signal_event ();
+                interrupt_epoll ();
         }
     }
 
@@ -495,10 +542,13 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     bool IOHandler_Epoll::same_context () const
     {
-        if (caller_pid == invalid_pid)
-            caller_pid = (pid_t) syscall (SYS_gettid);
-
-        return worker_pid == invalid_pid  ||  worker_pid == caller_pid;
+        if (worker_tid == invalid_pid) {
+            return true;
+        }else{
+            if (caller_tid == invalid_pid)
+                caller_tid = (pid_t) syscall (SYS_gettid);
+            return worker_tid == caller_tid;
+        }
     }
 
 
@@ -521,6 +571,35 @@ namespace iomultiplex {
 
 
     //--------------------------------------------------------------------------
+    // ops_mutex is locked
+    //--------------------------------------------------------------------------
+    int IOHandler_Epoll::queue_io_op_sanity_check (const int fd, const bool read)
+    {
+        if (fd < 0) {
+            // We can't queue an I/O operation with an invalid file descriptor
+            errno = EBADF;
+            return -1;
+        }
+        if (state == state_t::stopping) {
+            // We can't queue an I/O operation while the I/O handler is shutting down
+            errno = ECANCELED;
+            return -1;
+        }
+        if (read && rx_cancel_map.find(fd)!=rx_cancel_map.end()) {
+            // RX operations are being cancelled
+            errno = ECANCELED;
+            return -1;
+        }
+        if (!read && tx_cancel_map.find(fd)!=tx_cancel_map.end()) {
+            // TX operations are being cancelled
+            errno = ECANCELED;
+            return -1;
+        }
+        return 0;
+    }
+
+
+    //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
     int IOHandler_Epoll::queue_io_op (Connection& conn,
                                 void* buf,
@@ -533,14 +612,8 @@ namespace iomultiplex {
         std::lock_guard<std::mutex> lock (ops_mutex);
 
         int fd = conn.handle ();
-        if (fd < 0) {
-            errno = EBADF;
+        if (queue_io_op_sanity_check(fd, read))
             return -1;
-        }
-        if (state == state_t::stopping) {
-            errno = ECANCELED;
-            return -1;
-        }
 
         TRACE ("Queue a %s%s operation on file desc %d, %u bytes requested",
                (dummy_operation?"dummy ":""), (read?"Rx":"Tx"), fd, size);
@@ -550,11 +623,14 @@ namespace iomultiplex {
                                               cb, timeout, dummy_operation));
 
         bool send_signal {false};
+        bool new_ops_map_entry {false};
 
         auto entry = ops_map.find (fd);
-        if (entry == ops_map.end())
+        if (entry == ops_map.end()) {
             entry = ops_map.emplace (fd, std::make_pair(ioop_list_t(),         // Rx list
                                                         ioop_list_t())).first; // Tx list
+            new_ops_map_entry = true;
+        }
 
         auto& op_list {read ? entry->RX_LIST : entry->TX_LIST};
 
@@ -585,16 +661,18 @@ namespace iomultiplex {
                                       events_to_string(event.events).c_str(),
                                       strerror(errno));
                     }
+                    if (new_ops_map_entry)
+                        ops_map.erase (entry);
+
                     errno = errnum; // restore errno
                     return -1;
                 }
             }
             if (timeout != (unsigned)-1) {
-                //
-                // TODO: Optimize to only re-calculate timeout if new timeout expires earlier than current
-                //
-                // We need to re-calculate the timeout in epoll_pwait, signal it
-                send_signal = true;
+                if (ioop->timeout_map_pos == ioop->timeout_map.begin()) {
+                    // We need to re-calculate the timeout in epoll_pwait, signal it
+                    send_signal = true;
+                }
             }
         }
         op_list.emplace_back (ioop);
@@ -605,10 +683,49 @@ namespace iomultiplex {
         --ioop->ioop_list_pos;
 
         if (send_signal && !is_same_context)
-            signal_event ();
+            interrupt_epoll (); // Interrupt call to epoll_pwait in order to recalculate timeout
 
         errno = 0;
         return 0;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // ops_mutex is locked!
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::cancel_while_stopped (Connection& conn, bool rx, bool tx)
+    {
+        auto fd = conn.handle ();
+        auto entry = ops_map.find (fd);
+
+        if (rx) {
+            // Cancel RX operations
+            for (auto& ioop : entry->RX_LIST)
+                call_ioop_cb (*ioop, -1, ECANCELED);
+            entry->RX_LIST.clear ();
+            rx_cancel_map.erase (fd);
+        }
+        if (tx) {
+            // Cancel TX operations
+            for (auto& ioop : entry->TX_LIST)
+                call_ioop_cb (*ioop, -1, ECANCELED);
+            entry->TX_LIST.clear ();
+            tx_cancel_map.erase (fd);
+        }
+
+        if (entry->RX_LIST.empty() && entry->TX_LIST.empty()) {
+            // All operations for this file descriptor are cancelled
+            epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+            ops_map.erase (entry);
+        }else{
+            struct epoll_event event;
+            event.data.fd = fd;
+            if (rx)
+                event.events = EPOLLOUT; // RX operations cancelled, we still have TX operations
+            if (tx)
+                event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
+            epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
+        }
     }
 
 
@@ -623,15 +740,9 @@ namespace iomultiplex {
         if (fd < 0)
             return; // Invalid file handle
 
-        std::lock_guard<std::mutex> lock (ops_mutex);
+        std::unique_lock<std::mutex> lock (ops_mutex);
         if (state == state_t::stopping)
             return; // I/O handler stopping and cleaning up
-
-        TRACE ("Cancel %s%s%s for file descriptor %d",
-               (tx?"Tx":""),
-               ((tx && rx)?" and ":""),
-               (rx?"Rx":""),
-               fd);
 
         auto entry = ops_map.find (fd);
         if (entry == ops_map.end())
@@ -640,45 +751,18 @@ namespace iomultiplex {
         auto& rx_op_list {entry->RX_LIST};
         auto& tx_op_list {entry->TX_LIST};
 
-        bool rx_ops_removed = false;
-        bool tx_ops_removed = false;
+        if (rx && (rx_op_list.empty() || rx_cancel_map.emplace(fd).second==false))
+            rx = false;
+        if (tx && (tx_op_list.empty() || tx_cancel_map.emplace(fd).second==false))
+            tx = false;
 
-        if (rx && !rx_op_list.empty()) {
-            // Clear read operations
-            TRACE ("Erasing Rx operations for file descriptor %d", fd);
-            rx_op_list.clear ();
-            rx_ops_removed = true;
-        }
-        if (tx && !tx_op_list.empty()) {
-            // Clear write operations
-            TRACE ("Erasing Tx operations for file descriptor %d", fd);
-            tx_op_list.clear ();
-            tx_ops_removed = true;
-        }
-
-        // Nothing needed to be cancelled
-        if (!rx_ops_removed && !tx_ops_removed)
-            return;
-
-        if (rx_op_list.empty() && tx_op_list.empty()) {
-            // All operations are cancelled
-            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                        epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
-            epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
-            ops_map.erase (entry);
-            if (fd_map_entry_removed.first == fd)
-                fd_map_entry_removed.second = true; // fd removed from ops_map
-        }else {
-            struct epoll_event event;
-            event.data.fd = fd;
-            if (rx_ops_removed)
-                event.events = EPOLLOUT; // RX operations cancelled, we still have TX operations
-            if (tx_ops_removed)
-                event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
-
-            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                        epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
-            epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
+        if (rx || tx) {
+            if (state == state_t::stopped) {
+                cancel_while_stopped (conn, rx, tx);
+            }else if (!same_context()) {
+                // Interrupt epoll_pwait() to handle cancelled I/O operations
+                interrupt_epoll ();
+            }
         }
     }
 
@@ -710,6 +794,56 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     // ops_mutex is locked!
+    // Worker context.
+    // epoll_pwait() not running
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::handle_cancelled_ops ()
+    {
+        static constexpr const int rx_op = 0;
+        static constexpr const int tx_op = 1;
+        std::set<int>* cancel_map[2] = {&rx_cancel_map, &tx_cancel_map};
+
+        while (!cancel_map[rx_op]->empty() || !cancel_map[tx_op]->empty()) {
+            for (int op_type=rx_op; op_type<=tx_op; ++op_type) {
+                while (!cancel_map[op_type]->empty()) {
+                    auto fd_entry = cancel_map[op_type]->begin ();
+                    int fd = *fd_entry;
+
+                    auto ops_map_entry = ops_map.find (fd);
+                    if (ops_map_entry != ops_map.end()) {
+                        auto& ioop_list = op_type==rx_op ? ops_map_entry->RX_LIST : ops_map_entry->TX_LIST;
+                        auto& other_ioop_list = op_type==rx_op ? ops_map_entry->TX_LIST : ops_map_entry->RX_LIST;
+                        bool ops_cancelled = false;
+                        for (auto& ioop : ioop_list) {
+                            ops_cancelled = true;
+                            // Callbacks can't add operations for this fd since it's cancelling
+                            call_ioop_cb (*ioop, -1, ECANCELED);
+                        }
+                        // Only modify epoll events if operations were actually removed
+                        if (ops_cancelled) {
+                            ioop_list.clear ();
+                            if (other_ioop_list.empty()) {
+                                // Neither RX nor TX operations left for this file descriptor
+                                epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+                                ops_map.erase (ops_map_entry);
+                            }else{
+                                // Only RX or TX operations left for this file desccriptor
+                                struct epoll_event event;
+                                event.data.fd = fd;
+                                event.events = op_type==rx_op ? EPOLLOUT : EPOLLIN;
+                                epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
+                            }
+                        }
+                    }
+                    cancel_map[op_type]->erase (fd_entry);
+                }
+            }
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
+    // ops_mutex is locked!
     //--------------------------------------------------------------------------
     void IOHandler_Epoll::handle_timeout (struct timespec& now)
     {
@@ -734,13 +868,14 @@ namespace iomultiplex {
                                 -1,
                                 ETIMEDOUT);
 
-            // Remove the I/O operation from the queue
             bool is_rx = ioop.is_rx;
             fd_ops_map_t::iterator ops_map_pos = ioop.ops_map_pos;
             ioop_list_t::iterator op_list_pos = ioop.ioop_list_pos;
             ioop_list_t& op_list = is_rx ? ops_map_pos->RX_LIST : ops_map_pos->TX_LIST;
 
             int fd = ops_map_pos->first;
+
+            // Get the current epoll events for this file descriptor
             uint32_t current_epoll_events = 0;
             if (!ops_map_pos->RX_LIST.empty())
                 current_epoll_events = EPOLLIN;
@@ -754,6 +889,8 @@ namespace iomultiplex {
                    diff.tv_sec, diff.tv_nsec);
 #endif
 
+            // Remove the I/O operation from the queue
+            // (its destructor will remove the entry from the timeout mep)
             op_list.erase (op_list_pos);
             if (ops_map_pos->RX_LIST.empty() && ops_map_pos->TX_LIST.empty())
                 ops_map.erase (ops_map_pos);
@@ -813,11 +950,18 @@ namespace iomultiplex {
                    fd, events, events_to_string(events).c_str());
 
             currently_handled_fd = fd;
-            uint32_t err = events & (EPOLLERR|EPOLLHUP);
-            if (events & (EPOLLOUT|EPOLLHUP|EPOLLERR))
-                handle_event (fd, false, err);
-            if (events & (EPOLLIN|EPOLLHUP|EPOLLERR))
-                handle_event (fd, true, err);
+            uint32_t rxtx = events & (EPOLLOUT|EPOLLIN);
+            uint32_t err  = events & (EPOLLERR|EPOLLHUP);
+            if (rxtx == 0) {
+                // Error condition without specific direction
+                handle_event (fd, false, err); // Write
+                handle_event (fd, true,  err); // Read
+            }else{
+                if (rxtx & EPOLLOUT)
+                    handle_event (fd, false, err);
+                if (rxtx & EPOLLIN)
+                    handle_event (fd, true, err);
+            }
             currently_handled_fd = -1;
         }
     }
@@ -841,6 +985,7 @@ namespace iomultiplex {
             current_epoll_events |= EPOLLOUT;
 
         auto* ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
+        auto* cancel_map = read ? &tx_cancel_map : &tx_cancel_map;
         bool done {false};
         TRACE ("File descriptor %d have %d %s operation(s)", fd, ioop_list->size(), (read?"input":"output"));
         while (!quit && !done && !ioop_list->empty()) {
@@ -874,15 +1019,18 @@ namespace iomultiplex {
             }
 
             if (ioop->errnum == EAGAIN) {
+                // File descriptor not ready, abort here and continue polling
                 ioop->result = 0;
                 ioop->errnum = 0;
                 done = true;
                 break;
             }
 
+            // Remove this operation from the I/O operation queue
             ioop_list->pop_front ();
 
             if (ioop->cb == nullptr) {
+                // No I/O callback, done
                 done = true;
             }else{
                 fd_map_entry_removed.first = fd;
@@ -905,6 +1053,12 @@ namespace iomultiplex {
                     }
                 }
                 fd_map_entry_removed.first = -1; // Invalidate the fd map check
+            }
+
+            if (!done && !!ioop_list->empty()) {
+                // Before handling the next operation, check if a callback cancelled operations
+                if (cancel_map->find(fd) != cancel_map->end())
+                    done = true;
             }
         }
 

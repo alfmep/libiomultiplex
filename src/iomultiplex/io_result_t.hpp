@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -38,8 +38,10 @@ namespace iomultiplex {
         void*       buf;    /**< The buffer that was read to/written from. */
         size_t      size;   /**< The requested number of bytes to read/write. */
         ssize_t     result; /**< The number of bytes that was read/written, or -1 on error.
-                             *   A value of 0 is allowed,
-                             *   normally meaning the end of the file/stream was encountered.
+                             *   A value of 0 is allowed, normally meaning the
+                             *   end of the file/stream was encountered.<br/>
+                             *   On a timeout, <code>result</code> is -1 and
+                             *   <code>errnum</code> is set to ETIMEDOUT.
                              */
         int         errnum; /**< The value of <code>errno</code> after the read/write operation. */
 

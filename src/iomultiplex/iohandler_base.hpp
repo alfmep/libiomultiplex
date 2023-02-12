@@ -202,6 +202,20 @@ namespace iomultiplex {
 
 
     protected:
+        /**
+         * Queue a single I/O operation.
+         * @param conn The connection perforimg the I/O.
+         * @param buf A pointer to a data buffer being operated upon.
+         * @param size The number of bytes to read/receive or write/send.
+         * @param cb A callback that is called when the I/O
+         *           operation has a result.
+         * @param read <code>true</code> for an input operation,
+         *             <code>true</code> for an output operation.
+         * @param dummy_operation If <code>true</code>, no data
+         *                        is actually read or written.
+         * @param timeout Timeout in milliseconds for the I/O operation.
+         *                Use -1 for no timeout.
+         */
         virtual int queue_io_op (Connection& conn,
                                  void* buf,
                                  size_t size,
