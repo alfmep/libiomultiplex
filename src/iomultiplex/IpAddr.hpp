@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -158,10 +158,6 @@ namespace iomultiplex {
          */
         bool parse (const std::string& address, const bool parse_port=true);
 
-        /**
-         * Return the size of the address data.
-         * @return The size of the address data.
-         */
         virtual size_t size () const;
 
         /**
@@ -202,16 +198,7 @@ namespace iomultiplex {
          */
         void ipv6 (const std::array<uint16_t, 8>& addr);
 
-        /**
-         * Make a clone of this address object.
-         * @return A copy of this object.
-         */
         virtual std::shared_ptr<SockAddr> clone () const;
-
-        /**
-         * Return a string representation of the IP address.
-         * @return A string representation of the IP address.
-         */
         virtual std::string to_string () const;
 
         /**

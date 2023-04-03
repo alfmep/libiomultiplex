@@ -64,7 +64,8 @@ namespace iomultiplex {
         /**
          * Destructor.
          * Cancels all pending I/O operations and stops the I/O handling.
-         * If a worker thread is running, it is stopped.
+         * If a worker thread is running, it is stopped before the destructor
+         * returns.
          */
         virtual ~iohandler_base () = default;
 
@@ -169,8 +170,7 @@ namespace iomultiplex {
          * specified connection. The pending I/O operations
          * will have a result of -1 and <code>errnum</code>
          * set to <code>ECANCELED</code>.
-         * @param conn The connection for which to cancel
-         *             read and/or write operations.
+         * @param conn The connection for which to cancel RX/TX operations.
          * @param cancel_rx If <code>true</code> (default),
          *                  cancel all RX operations.
          * @param cancel_tx If <code>true</code> (default),
@@ -215,6 +215,8 @@ namespace iomultiplex {
          *                        is actually read or written.
          * @param timeout Timeout in milliseconds for the I/O operation.
          *                Use -1 for no timeout.
+         * @return 0 on success, -1 and <code>errno</code> is
+         *         set if the I/O operation couldn't be queued.
          */
         virtual int queue_io_op (Connection& conn,
                                  void* buf,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -70,12 +70,6 @@ namespace iomultiplex {
         Adapter (std::shared_ptr<Connection> conn_ptr);
 
         /**
-         * Move constructor.
-         * @param adapter The adapter object to move to this instance.
-         */
-        //Adapter (Adapter&& adapter);
-
-        /**
          * Destructor.
          * The slave connection is only closed by this
          * destructor if the constructor was called with
@@ -87,12 +81,6 @@ namespace iomultiplex {
         virtual ~Adapter ();
 
         /**
-         * Move operator.
-         * @param adapter The adapter object to move to this instance.
-         */
-        //Adapter& operator= (Adapter&& adapter);
-
-        /**
          * Get the file descriptor associated with the slave connection.
          * @return The file desctiptor associated with the slave connection.
          *         <br/>
@@ -101,16 +89,12 @@ namespace iomultiplex {
          */
         virtual int handle ();
 
-        /**
-         * Check if the connection is open or not.
-         * @return <code>true</code> if the connection is open.
-         */
         virtual bool is_open () const;
 
         /**
          * Return the iohandler_base object that this connection uses.
-         * @return The iohandler_base object that manages the I/O operations
-         *         for this connection.
+         * @return A reference to the iohandler_base object that
+         *         manages the I/O operations for this connection.
          * @exception std::runtime_error If a slave connection doesn't
          *                               exist. This can happen if a
          *                               <code>nullptr</code> was passed
@@ -118,16 +102,7 @@ namespace iomultiplex {
          */
         virtual iohandler_base& io_handler ();
 
-        /**
-         * Cancel I/O operations for this connection.
-         * @param cancel_rx If <code>true</code> (default), cancel all RX operations.
-         * @param cancel_tx If <code>true</code> (default), cancel all TX operations.
-         */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
-
-        /**
-         * Close the connection.
-         */
         virtual void close ();
 
         /**

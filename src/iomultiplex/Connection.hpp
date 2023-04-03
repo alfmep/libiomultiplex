@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -62,6 +62,8 @@ namespace iomultiplex {
         /**
          * Return the file descriptor associated with this connection.
          * @return The file desctiptor associated with this connection.
+         *         <br/>
+         *         <b>Note:</b> If the connection is closed, -1 is returned.
          */
         virtual int handle () = 0;
 
@@ -73,8 +75,8 @@ namespace iomultiplex {
 
         /**
          * Return the iohandler_base object used by this connection.
-         * @return The iohandler_base object that manages the
-         *         I/O operations for this connection.
+         * @return A reference to the iohandler_base object that
+         *         manages the I/O operations for this connection.
          */
         virtual iohandler_base& io_handler () = 0;
 
@@ -84,7 +86,7 @@ namespace iomultiplex {
          * assiciated with that I/O operation is called and the
          * <code>result</code> and <code>errnum</code> members of
          * the io_result_t parameter will be set to <code>-1</code>
-         * and <code>ECANCELED</code> respectively.<br/>
+         * and <code>ECANCELED</code> respectively.
          * This is done so allocated resources associated
          * with the I/O operation can be released.
          *
@@ -95,7 +97,7 @@ namespace iomultiplex {
 
         /**
          * Close the connection.
-         * This method should cancel all I/O operations before closing.
+         * This method will cancel all pending I/O operations before closing.
          */
         virtual void close () = 0;
 

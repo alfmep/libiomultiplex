@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -97,8 +97,8 @@ namespace iomultiplex {
 
         /**
          * Cancel all file watchers.
-         * @param cancel_rx Not used.
-         * @param cancel_tx Not used.
+         * @param cancel_rx This parameter is ignored.
+         * @param cancel_tx This parameter is ignored.
          */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 

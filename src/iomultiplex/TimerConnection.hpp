@@ -102,8 +102,8 @@ namespace iomultiplex {
         /**
          * Cancel the timer.
          * De-activate the timer if activated.
-         * @param cancel_rx Not used.
-         * @param cancel_tx Not used.
+         * @param cancel_rx This parameter is ignored.
+         * @param cancel_tx This parameter is ignored.
          */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
 

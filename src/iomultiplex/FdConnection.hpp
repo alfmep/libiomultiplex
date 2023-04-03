@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -78,66 +78,12 @@ namespace iomultiplex {
          */
         FdConnection& operator= (FdConnection&& fc);
 
-        /**
-         * Return the file descriptor associated with this connection.
-         * @return The file descriptor associated with this connection.
-         */
         virtual int handle ();
-
-        /**
-         * Check is the connection is open or not.
-         * @return <code>true</code> if the connection is open.
-         */
         virtual bool is_open () const;
-
-        /**
-         * Return the iohandler_base object that this connection uses.
-         * @return The iohandler_base object that manages the I/O operations for this connection.
-         */
         virtual iohandler_base& io_handler ();
-
-        /**
-         * Cancel I/O operations for this connection.
-         * @param cancel_rx If <code>true</code> (default), cancel all RX operations.
-         * @param cancel_tx If <code>true</code> (default), cancel all TX operations.
-         */
         virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
-
-        /**
-         * Cancel all pending I/O operations and close the file descriptor.
-         */
         virtual void close ();
-
-        /**
-         * Do the actual reading from the file descriptor.
-         * This method should normally not be called directly,
-         * it is called by the iohandler_base when the file descriptor is
-         * ready to read data.
-         * @param buf A pointer to the memory area where data should be stored.
-         * @param size The number of bytes to read.
-         * @param errnum The value of <code>errno</code> after
-         *               the read operation. Always 0 if no error occurred.
-         * @return The number of bytes that was read.
-         *         <br/>
-         *         On error, -1 is returned and parameter <code>errnum</code>
-         *         is set to some appropriate value.
-         */
         virtual ssize_t do_read (void* buf, size_t size, int& errnum);
-
-        /**
-         * Do the actual writing to the file descriptor.
-         * This method should normally not be called directly,
-         * it is called by the iohandler_base when the file descriptor is
-         * ready to write data.
-         * @param buf A pointer to the memory area that should be written.
-         * @param size The number of bytes to write.
-         * @param errnum The value of <code>errno</code> after
-         *               the write operation. Always 0 if no error occurred.
-         * @return The number of bytes that was written.
-         *         <br/>
-         *         On error, -1 is returned and parameter <code>errnum</code>
-         *         is set to some appropriate value.
-         */
         virtual ssize_t do_write (const void* buf, size_t size, int& errnum);
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -96,10 +96,6 @@ namespace iomultiplex {
          */
         //bool operator< (const UxAddr& rhs) const;
 
-        /**
-         * Return the size of the address data.
-         * @return The size of the address data.
-         */
         virtual size_t size () const;
 
         /**
@@ -122,16 +118,7 @@ namespace iomultiplex {
          */
         bool is_abstract () const;
 
-        /**
-         * Make a clone of this address object.
-         * @return A copy of this object.
-         */
         virtual std::shared_ptr<SockAddr> clone () const;
-
-        /**
-         * Return a string representation of the address.
-         * @return A string representation of the address.
-         */
         virtual std::string to_string () const;
     };
 

@@ -42,7 +42,7 @@ namespace iomultiplex {
 
 
     /**
-     * I/O handler.
+     * An I/O handler using poll to wait for I/O events.
      * This class is responsible for managing the I/O operations
      * of all the connection objects using it.
      */
@@ -59,63 +59,15 @@ namespace iomultiplex {
         /**
          * Destructor.
          * Cancels all pending I/O operations and stops the I/O handling.
-         * If a worker thread is running, it is stopped.
+         * If a worker thread is running, it is stopped before the destructor
+         * returns.
          */
         virtual ~IOHandler_Poll ();
 
-        /**
-         * Run the I/O handler until stopped with method 'stop' or an error occurrs.
-         * This method will block unless a worker thread is requested, in
-         * that case this method will return when the worker thread is up and running.
-         * @param start_worker_thread If <code>true</code> start a new thread
-         *                            to handle the I/O.
-         * @return 0 on success, -1 on error and <code>errno</code> is set.
-         */
         virtual int run (bool start_worker_thread=false);
-
-        /**
-         * Stop the I/O handler.
-         * All pending I/O operations are cancelled.
-         * \note If the I/O handler is run in a worker thread,
-         * the worker thread is signaled to stop and this
-         * method returns immediately. To block until the worker
-         * thread is stopped, call method <code>join()</code>.
-         * @see IOHandler_Poll::join
-         */
         virtual void stop ();
-
-        /**
-         * Cancel all input and/or output operations for a connection.
-         * This will cancel all I/O operations for the
-         * specified connection. The pending I/O operations
-         * will have a result of -1 and <code>errnum</code>
-         * set to <code>ECANCELED</code>.
-         * @param conn The connection for which to cancel RX/TX operations.
-         * @param cancel_rx If <code>true</code> (default),
-         *                  cancel all RX operations.
-         * @param cancel_tx If <code>true</code> (default),
-         *                  cancel all TX operations.
-         */
         virtual void cancel (Connection& conn, bool cancel_rx=true, bool cancel_tx=true);
-
-        /**
-         * Check if the I/O handler is running in the same
-         * context(i.e. same thread) as the caller.
-         * @return <code>true</code> if the I/O handler is
-         *         running in the same thread as the caller.
-         */
         virtual bool same_context () const;
-
-        /**
-         * If the I/O handler has a worker thread running,
-         * block until the worker thread is terminated.
-         * If not, return immediately.
-         * \note If the I/O handler has a worker thread
-         *       running, and this method is called from
-         *       within that thread, it will cause a deadlock
-         *       and the application will probably terminate
-         *       with an error.
-         */
         virtual void join ();
 
 

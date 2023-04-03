@@ -42,95 +42,40 @@ namespace iomultiplex {
 
 
     /**
-     * I/O handler.
+     * An I/O handler using epoll to wait for I/O events.
      */
     class IOHandler_Epoll : public iohandler_base {
     public:
         /**
          * Constructor.
-         * @param signal_num The signal number used internally by the iohandler_base.
-         *                   Default is SIGRTMIN. Change this if the application
-         *                   is using this signal for other purposes.
-         * @param max_events_hint The maximum number of events that epoll handles at a time.
+         * @param signal_num A signal number used internally by the
+         *                   I/O handler when <code>epoll_pwait</code>
+         *                   needs to be interrupted.<br/>
+         *                   Default is <code>SIGRTMIN</code>.
+         *                   Change this if the application is using
+         *                   this signal for other purposes.
+         * @param max_events_hint The maximum number of events that
+         *                        epoll handles at a time.
          *                        Must be greater than zero.
          */
         IOHandler_Epoll (const int signal_num=SIGRTMIN, const int max_events_hint=32);
 
         /**
          * Destructor.
+         * Cancels all pending I/O operations and stops the I/O handler.
+         * If a worker thread is running, it is stopped before the destructor
+         * returns.
          */
         virtual ~IOHandler_Epoll ();
 
-        /**
-         * Run the I/O handler until stopped with method 'stop' or an error occurrs.
-         * @param start_worker_thread If <code>true</code> start a new thread
-         *                            to handle the I/O.
-         * @return 0 on success. -1 on failure and <code>errno</code> is set.
-         */
         virtual int run (bool start_worker_thread=false);
-
-        /**
-         * Stop the I/O handler.
-         * If the I/O handler is run in a worker thread,
-         * the worker thread is signaled to stop and then
-         * this method returns. To wait for the worker thread
-         * to be stopped, call method join.
-         * @see iohandler_base::join
-         */
         virtual void stop ();
-
-        /**
-         * Cancel all input and/or output operations for a connection.
-         * This will cancel all I/O operations for the
-         * specified connection. The pending I/O operations
-         * will have a result of -1 and <code>errnum</code>
-         * set to <code>ECANCELED</code>.
-         * @param conn The connection for which to cancel RX/TX operations.
-         * @param cancel_rx If <code>true</code> (default),
-         *                  cancel all RX operations.
-         * @param cancel_tx If <code>true</code> (default),
-         *                  cancel all TX operations.
-         */
-        virtual void cancel (Connection& conn,
-                             bool cancel_rx=true,
-                             bool cancel_tx=true);
-
-        /**
-         * Check if the I/O handler is running in the same
-         * context(i.e. same thread) as the caller.
-         * @return <code>true</code> if the calling thread is
-         *         running in the same thread as the I/O handler.
-         */
+        virtual void cancel (Connection& conn, bool cancel_rx=true, bool cancel_tx=true);
         virtual bool same_context () const;
-
-        /**
-         * If the I/O handler has a worker thread running,
-         * block until the worker thread is terminated.
-         * If not, return immediately.
-         * \note If the I/O handler has a worker thread
-         *       running, and this method is called from
-         *       within that thread, it will cause a deadlock
-         *       and the application will probably terminate
-         *       with an error.
-         */
         virtual void join ();
 
 
     protected:
-        /**
-         * Queue a single I/O operation.
-         * @param conn The connection perforimg the I/O.
-         * @param buf A pointer to a data buffer being operated upon.
-         * @param size The number of bytes to read/receive or write/send.
-         * @param cb A callback that is called when the I/O
-         *           operation has a result.
-         * @param read <code>true</code> for an input operation,
-         *             <code>true</code> for an output operation.
-         * @param dummy_operation If <code>true</code>, no data
-         *                        is actually read or written.
-         * @param timeout Timeout in milliseconds for the I/O operation.
-         *                Use -1 for no timeout.
-         */
         virtual int queue_io_op (Connection& conn,
                                  void* buf,
                                  size_t size,

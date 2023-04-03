@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -115,7 +115,7 @@ namespace iomultiplex {
 
         /**
          * Get the terminal attributes of the serial device.
-         * @param cfg A poiter to a termios_cfg structure to
+         * @param cfg A reference to a termios_cfg structure to
          *            store the terminal attributes.
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
@@ -123,8 +123,8 @@ namespace iomultiplex {
 
         /**
          * Set the terminal attributes of the serial device.
-         * @param cfg A poiter to a termios_cfg structure from
-         *            where to get the terminal attributes.
+         * @param cfg A reference to a termios_cfg structure with
+         *            the terminal attributes we want to set.
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         int set_cfg (const termios_cfg& cfg);
