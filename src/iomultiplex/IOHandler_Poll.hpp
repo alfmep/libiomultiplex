@@ -45,8 +45,12 @@ namespace iomultiplex {
      * An I/O handler using poll to wait for I/O events.
      * This class is responsible for managing the I/O operations
      * of all the connection objects using it.
+     *
+     * @deprecated Use <code>IOHandler_Epoll</code> instead.
      */
-    class IOHandler_Poll : public iohandler_base {
+    class [[deprecated("Use iomultiplex::IOHandler_Epoll instead.")]] IOHandler_Poll
+        : public iohandler_base
+    {
     public:
         /**
          * Constructor.
