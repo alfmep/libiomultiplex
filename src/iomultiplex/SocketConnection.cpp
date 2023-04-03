@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -597,7 +597,8 @@ namespace iomultiplex {
                                  buf,
                                  size,
                                  ior.result,
-                                 ior.errnum);
+                                 ior.errnum,
+                                 ior.timeout);
                 if (rx_cb)
                     rx_cb (*this, res, *peer);
                 else if (def_sock_rx_cb)
@@ -687,7 +688,8 @@ namespace iomultiplex {
                                  const_cast<void*>(buf),
                                  size,
                                  result,
-                                 errno<0 ? errno : 0);
+                                 errno<0 ? errno : 0,
+                                 ior.timeout);
                 if (tx_cb)
                     tx_cb (*this, res, *addr);
                 else if (def_sock_tx_cb)

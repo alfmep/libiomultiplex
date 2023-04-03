@@ -195,7 +195,7 @@ namespace iomultiplex {
 
         io_callback_t   cb;         /**< Callback to be called when the operation is done. */
         bool            dummy_op;   /**< A dummy operation, don't actually try to read or write anything. */
-        struct timespec timeout;    /**< Timeout value. */
+        struct timespec abs_timeout;/**< Timeout value in absolute time. */
         timeout_map_t& timeout_map;
         timeout_map_t::iterator timeout_map_pos; // Position in timeout_map
 
@@ -773,7 +773,8 @@ namespace iomultiplex {
                                 ioop.buf,
                                 ioop.size,
                                 -1,
-                                ETIMEDOUT);
+                                ETIMEDOUT,
+                                ioop.timeout);
 
             // Remove the I/O operation from the queue
             bool is_rx = ioop.is_rx;
@@ -812,37 +813,37 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
     IOHandler_Poll::ioop_t::ioop_t (timeout_map_t& tm,
-                               bool read,
-                               Connection& c,
-                               void* b,
-                               size_t s,
-                               const io_callback_t& callback,
-                               unsigned timeout_ms,
-                               const bool dummy)
-        : io_result_t (c, b, s, 0, 0),
+                                    bool read,
+                                    Connection& c,
+                                    void* b,
+                                    size_t s,
+                                    const io_callback_t& callback,
+                                    unsigned timeout_ms,
+                                    const bool dummy)
+        : io_result_t (c, b, s, 0, 0, timeout_ms),
           cb {callback},
           dummy_op {dummy},
           timeout_map {tm},
           is_rx {read}
     {
         if (timeout_ms == (unsigned)-1) {
-            timeout.tv_sec = 0;
-            timeout.tv_nsec = 0;
+            abs_timeout.tv_sec = 0;
+            abs_timeout.tv_nsec = 0;
             timeout_map_pos = timeout_map.end ();
             return;
         }
 
-        clock_gettime (CLOCK_BOOTTIME, &timeout);
+        clock_gettime (CLOCK_BOOTTIME, &abs_timeout);
         while (timeout_ms >= 1000) {
-            ++timeout.tv_sec;
+            ++abs_timeout.tv_sec;
             timeout_ms -= 1000;
         }
-        timeout.tv_nsec += timeout_ms * 1000000;
-        if (timeout.tv_nsec >= 1000000000L) {
-            ++timeout.tv_sec;
-            timeout.tv_nsec -= 1000000000L;
+        abs_timeout.tv_nsec += timeout_ms * 1000000;
+        if (abs_timeout.tv_nsec >= 1000000000L) {
+            ++abs_timeout.tv_sec;
+            abs_timeout.tv_nsec -= 1000000000L;
         }
-        timeout_map_pos = timeout_map.emplace (timeout, *this);
+        timeout_map_pos = timeout_map.emplace (abs_timeout, *this);
     }
 
 

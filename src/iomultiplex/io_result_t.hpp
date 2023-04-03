@@ -44,13 +44,15 @@ namespace iomultiplex {
                              *   <code>errnum</code> is set to ETIMEDOUT.
                              */
         int         errnum; /**< The value of <code>errno</code> after the read/write operation. */
+        unsigned    timeout;/**< The original timeout value in milliseconds. If -1, no timeout was set. */
 
-        io_result_t (Connection& c, void* b, size_t s, ssize_t r, int e)
+        io_result_t (Connection& c, void* b, size_t s, ssize_t r, int e, unsigned t)
             : conn {c},
               buf {b},
               size {s},
               result {r},
-              errnum {e}
+              errnum {e},
+              timeout {t}
             {
             }
 

@@ -209,15 +209,16 @@ namespace iomultiplex {
         virtual ~ioop_t ();
 
         io_callback_t   cb;         // Callback to be called when the operation is done.
-        bool            dummy_op;   // A dummy operation, don't actually try to read or write anything.
-        struct timespec timeout;    // Timeout value.
+        struct timespec abs_timeout;// Timeout value in absolute time.
         timeout_map_t& timeout_map; // A reference to the timeout map holding this instance.
         timeout_map_t::iterator timeout_map_pos; // Position of this instance in timeout_map
 
         // Make it easy to erase an ioop_t object from the IOHandler_Epolls containers
-        bool is_rx;
         ioop_list_t::iterator ioop_list_pos; // Position in ioop list (tx list or rx list)
         fd_ops_map_t::iterator ops_map_pos;  // Position in file_desc->ioop_lists map
+
+        bool dummy_op; // A dummy operation, don't actually try to read or write anything.
+        bool is_rx;    // if true, an RX operation. If false, a TX operation.
     };
 
 
@@ -866,7 +867,8 @@ namespace iomultiplex {
                                 ioop.buf,
                                 ioop.size,
                                 -1,
-                                ETIMEDOUT);
+                                ETIMEDOUT,
+                                ioop.timeout);
 
             bool is_rx = ioop.is_rx;
             fd_ops_map_t::iterator ops_map_pos = ioop.ops_map_pos;
@@ -1097,37 +1099,37 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
     IOHandler_Epoll::ioop_t::ioop_t (timeout_map_t& tm,
-                               bool read,
-                               Connection& c,
-                               void* b,
-                               size_t s,
-                               const io_callback_t& callback,
-                               unsigned timeout_ms,
-                               const bool dummy)
-        : io_result_t (c, b, s, 0, 0),
+                                     bool read,
+                                     Connection& c,
+                                     void* b,
+                                     size_t s,
+                                     const io_callback_t& callback,
+                                     unsigned timeout_ms,
+                                     const bool dummy)
+        : io_result_t (c, b, s, 0, 0, timeout_ms),
           cb {callback},
-          dummy_op {dummy},
           timeout_map {tm},
+          dummy_op {dummy},
           is_rx {read}
     {
         if (timeout_ms == (unsigned)-1) {
-            timeout.tv_sec = 0;
-            timeout.tv_nsec = 0;
+            abs_timeout.tv_sec = 0;
+            abs_timeout.tv_nsec = 0;
             timeout_map_pos = timeout_map.end ();
             return;
         }
 
-        clock_gettime (CLOCK_MONOTONIC, &timeout);
+        clock_gettime (CLOCK_MONOTONIC, &abs_timeout);
         while (timeout_ms >= 1000) {
-            ++timeout.tv_sec;
+            ++abs_timeout.tv_sec;
             timeout_ms -= 1000;
         }
-        timeout.tv_nsec += timeout_ms * 1000000;
-        if (timeout.tv_nsec >= 1000000000L) {
-            ++timeout.tv_sec;
-            timeout.tv_nsec -= 1000000000L;
+        abs_timeout.tv_nsec += timeout_ms * 1000000;
+        if (abs_timeout.tv_nsec >= 1000000000L) {
+            ++abs_timeout.tv_sec;
+            abs_timeout.tv_nsec -= 1000000000L;
         }
-        timeout_map_pos = timeout_map.emplace (timeout, *this);
+        timeout_map_pos = timeout_map.emplace (abs_timeout, *this);
     }
 
 
