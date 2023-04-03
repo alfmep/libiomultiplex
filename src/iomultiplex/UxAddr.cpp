@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -153,12 +153,12 @@ namespace iomultiplex {
     {
         memset (((struct sockaddr_un&)sa).sun_path, 0, sizeof(((struct sockaddr_un&)sa).sun_path));
         if (abstract) {
-            ((struct sockaddr_un&)sa).sun_path[0] = '\0';
-            strncpy (((struct sockaddr_un&)sa).sun_path+1, path.c_str(), sizeof(((struct sockaddr_un&)sa).sun_path)-1);
+            // In an abstract address path, the first byte is '\0'.
+            //((struct sockaddr_un&)sa).sun_path[0] = '\0'; // Already '\0' from memset()
+            strncpy (((struct sockaddr_un&)sa).sun_path+1, path.c_str(), sizeof(((struct sockaddr_un&)sa).sun_path)-2);
         }else{
-            strncpy (((struct sockaddr_un&)sa).sun_path, path.c_str(), sizeof(((struct sockaddr_un&)sa).sun_path));
+            strncpy (((struct sockaddr_un&)sa).sun_path, path.c_str(), sizeof(((struct sockaddr_un&)sa).sun_path)-1);
         }
-        ((struct sockaddr_un&)sa).sun_path[sizeof(((struct sockaddr_un&)sa).sun_path)-1] = '\0';
     }
 
 
