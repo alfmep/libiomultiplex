@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -126,14 +126,6 @@ namespace iomultiplex {
             errno = errnum;
         }
         return fd<0 ? -1 : 0;
-    }
-
-
-    //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    bool FileConnection::is_open () const
-    {
-        return fd.load() != -1;
     }
 
 

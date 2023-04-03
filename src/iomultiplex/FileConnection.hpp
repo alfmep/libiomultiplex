@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -97,12 +97,6 @@ namespace iomultiplex {
          * @return 0 on success, -1 on failure and <code>errno</code> is set.
          */
         int open (const std::string& filename, int flags, int mode);
-
-        /**
-         * Check if the file is open.
-         * @return <code>true</code> if the file is open.
-         */
-        virtual bool is_open () const;
 
         /**
          * Return the name of the file.
