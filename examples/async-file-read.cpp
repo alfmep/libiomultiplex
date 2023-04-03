@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -19,6 +19,8 @@
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <cerrno>
 #include <unistd.h>
 #include <iomultiplex.hpp>
 
@@ -27,7 +29,7 @@ namespace iom = iomultiplex;
 
 
 //------------------------------------------------------------------------------
-// Called when a read operation is completed
+// Called when a read operation has completed
 //------------------------------------------------------------------------------
 static bool on_read (iom::io_result_t& ior)
 {
@@ -48,7 +50,7 @@ static bool on_read (iom::io_result_t& ior)
 
         // Queue the next read operation
         //
-        ior.conn.read (ior.buf, ior.size, on_read);
+        ior.conn.read (ior.buf, ior.size, on_read, ior.timeout);
     }
     return true;
 }
@@ -59,16 +61,18 @@ static bool on_read (iom::io_result_t& ior)
 int main (int argc, char* argv[])
 {
     if (argc < 2) {
-        cerr << "Usage: sync-file-read <filename>" << endl;
+        cerr << "Usage: sync-file-read <filename> [timeout_ms]" << endl;
+        cerr << endl;
+        cerr << "Note that epoll can't be used to read regular files." << endl;
+        cerr << "But files on a network disk can be read, or some" << endl;
+        cerr << "device files." << endl;
+        cerr << endl;
         return 1;
     }
 
-    // Start the I/O handler in a worker thread
+    // Create and start the I/O handler in a worker thread
     //
-    // The I/O handler must be an instance of IOHandler_Poll,
-    // since epoll doesn't work with regular files.
-    //
-    iom::IOHandler_Poll ioh;
+    iom::default_iohandler ioh;
     ioh.run (true);
 
     // Open a file
@@ -79,13 +83,25 @@ int main (int argc, char* argv[])
         return 1;
     }
 
+    // Set optional read timeout. Default is no timeout.
+    //
+    unsigned timeout = (unsigned) -1;
+    if (argc > 2)
+        timeout = stoi (argv[2]);
+
     // Queue a read operation
     // The result is handled in function 'on_read'
     //
     char buf[2048];
-    f.read (buf, sizeof(buf), on_read);
+    if (f.read(buf, sizeof(buf), on_read, timeout)) {
+        if (errno == EPERM)
+            cerr << "Error: epoll can't be used with regular files." << endl;
+        else
+            cerr << "Error: " << strerror(errno) << endl;
+        return 1;
+    }
 
-    // Wait for the I/O handler to stop (on EOF or I/O error)
+    // Wait for the I/O handler to finish.
     //
     ioh.join ();
 

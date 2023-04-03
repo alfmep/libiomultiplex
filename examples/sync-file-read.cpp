@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -17,7 +17,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <iostream>
+#include <cstring>
 #include <cstdio>
+#include <cerrno>
 #include <unistd.h>
 #include <iomultiplex.hpp>
 
@@ -30,16 +32,18 @@ namespace iom = iomultiplex;
 int main (int argc, char* argv[])
 {
     if (argc < 2) {
-        cerr << "Usage: sync-file-read <filename>" << endl;
+        cerr << "Usage: sync-file-read <filename> [timeout_ms]" << endl;
+        cerr << endl;
+        cerr << "Note that epoll can't be used to read regular files." << endl;
+        cerr << "But files on a network disk can be read, or some" << endl;
+        cerr << "device files." << endl;
+        cerr << endl;
         return 1;
     }
 
-    // Start the I/O handler in a worker thread
+    // Create and start the I/O handler in a worker thread
     //
-    // The I/O handler must be an instance of IOHandler_Poll,
-    // since epoll doesn't work with regular files.
-    //
-    iom::IOHandler_Poll ioh;
+    iom::default_iohandler ioh;
     ioh.run (true);
 
     // Open a file
@@ -50,18 +54,31 @@ int main (int argc, char* argv[])
         return 1;
     }
 
-    // Read from the file and print to standard output
+    // Set optional read timeout. Default is no timeout.
     //
-    char buf[4096];
+    unsigned timeout = (unsigned) -1;
+    if (argc > 2)
+        timeout = stoi (argv[2]);
+
+    // Read from the file and print to standard output
+    // until end-of-file or an error occurs.
+    //
+    char buf[2048];
     ssize_t result;
     do {
-        result = f.read (buf, sizeof(buf));
+        result = f.read (buf, sizeof(buf), timeout);
         if (result > 0)
             cout.write (buf, result);
     }while (result > 0);
 
-    if (result < 0)
-        perror ("read");
+    // Check the result of the last read operation
+    //
+    if (result == -1) {
+        if (errno == EPERM)
+            cerr << "Error: epoll can't be used with regular files." << endl;
+        else
+            cerr << "Error: " << strerror(errno) << endl;
+    }
 
     return result<0 ? 1 : 0;
 }
