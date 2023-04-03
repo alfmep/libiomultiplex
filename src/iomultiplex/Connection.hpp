@@ -81,7 +81,7 @@ namespace iomultiplex {
         virtual iohandler_base& io_handler () = 0;
 
         /**
-         * Cancel all I/O operations for this connection.
+         * Cancel all queued I/O operations for this connection.
          * When an I/O operation is cancelled, the callback function
          * assiciated with that I/O operation is called and the
          * <code>result</code> and <code>errnum</code> members of
@@ -90,10 +90,20 @@ namespace iomultiplex {
          * This is done so allocated resources associated
          * with the I/O operation can be released.
          *
+         * @note Until all I/O queued operations are cancelled,
+         * trying to queue an I/O operation of the same type
+         * (RX and/or TX) will fail with <code>errno</code> being
+         * set to <code>ECANCELED</code>.
+         *
          * @param cancel_rx If true, cancel all input operations.
          * @param cancel_tx If true, cancel all output operations.
+         * @param fast If <code>true</code>, all queued I/O operations
+         *             for this connection are removed immediately
+         *             without the associated callback being called.
          */
-        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true) = 0;
+        virtual void cancel (bool cancel_rx=true,
+                             bool cancel_tx=true,
+                             bool fast=false) = 0;
 
         /**
          * Close the connection.

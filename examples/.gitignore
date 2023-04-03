@@ -12,6 +12,7 @@ echo-dtls-server
 echo-server
 echo-client
 beacon-server
+beacon-client
 adapter-test
 iom-tftp/iom-tftpd
 iom-tftp/iom-tftp

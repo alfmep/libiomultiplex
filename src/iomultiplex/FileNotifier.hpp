@@ -99,8 +99,11 @@ namespace iomultiplex {
          * Cancel all file watchers.
          * @param cancel_rx This parameter is ignored.
          * @param cancel_tx This parameter is ignored.
+         * @param fast This parameter is ignored.
          */
-        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
+        virtual void cancel (bool cancel_rx=true,
+                             bool cancel_tx=true,
+                             bool fast=false);
 
 
     private:

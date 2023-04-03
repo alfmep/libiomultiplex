@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -75,6 +75,9 @@ echo_client_SOURCES  = echo-client.cpp
 
 noinst_bin_PROGRAMS  += beacon-server
 beacon_server_SOURCES = beacon-server.cpp
+
+noinst_bin_PROGRAMS  += beacon-client
+beacon_client_SOURCES = beacon-client.cpp
 
 noinst_bin_PROGRAMS  += adapter-test
 adapter_test_SOURCES  = adapter-test.cpp

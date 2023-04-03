@@ -81,7 +81,9 @@ namespace iomultiplex {
         virtual int handle ();
         virtual bool is_open () const;
         virtual iohandler_base& io_handler ();
-        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
+        virtual void cancel (bool cancel_rx=true,
+                             bool cancel_tx=true,
+                             bool fast=false);
         virtual void close ();
         virtual ssize_t do_read (void* buf, size_t size, int& errnum);
         virtual ssize_t do_write (const void* buf, size_t size, int& errnum);

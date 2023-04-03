@@ -66,6 +66,8 @@ namespace iomultiplex {
          * @param timeout_ms Timeout in milliseconds.
          *                   If 0, the timeout will expire as soon as possible.
          * @param callback The callback function to call when the time expires.
+         *                 <br/>If this parameter is a <code>nullptr</code>,
+         *                 the timer is deactivated (if currently activated).
          * @return 0 on success.
          *         If the timer can't be activated, -1 is returned
          *         and <code>errno</code> is set.
@@ -83,6 +85,8 @@ namespace iomultiplex {
          *                  with an interval of the number of milliseconds in
          *                  this parameter until cancelled or closed.
          * @param callback The callback function to call when the timer expires.
+         *                 <br/>If this parameter is a <code>nullptr</code>,
+         *                 the timer is deactivated (if currently activated).
          * @return 0 on success.
          *         If the timer can't be activated, -1 is returned
          *         and <code>errno</code> is set.
@@ -93,6 +97,8 @@ namespace iomultiplex {
          * Activate the timer with an absolute time in the future.
          * @param timeout The absolute time of the timeout.
          * @param callback The callback function to call when the timer expires.
+         *                 <br/>If this parameter is a <code>nullptr</code>,
+         *                 the timer is deactivated (if currently activated).
          * @return 0 on success.
          *         If the timer can't be activated, -1 is returned
          *         and <code>errno</code> is set.
@@ -104,13 +110,18 @@ namespace iomultiplex {
          * De-activate the timer if activated.
          * @param cancel_rx This parameter is ignored.
          * @param cancel_tx This parameter is ignored.
+         * @param fast This parameter is ignored.
          */
-        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
+        virtual void cancel (bool cancel_rx=true,
+                             bool cancel_tx=true,
+                             bool fast=false);
 
 
     private:
         uint64_t overrun;
+        std::mutex mutex;
         std::function<void()> cb;
+        void cancel_impl ();
         static void timer_cb (io_result_t& ior, bool repeat);
     };
 

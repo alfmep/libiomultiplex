@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -81,15 +81,18 @@ namespace iomultiplex {
         }
 
         TimerConnection& timer = dynamic_cast<TimerConnection&> (ior.conn);
+        timer.mutex.lock ();
         if (repeat) {
             timer.read (&timer.overrun, sizeof(timer.overrun), [](io_result_t& ior)->bool
-            {
-                timer_cb (ior, true);
-                return false;
-            });
+                {
+                    timer_cb (ior, true);
+                    return false;
+                });
         }
-        if (timer.cb)
-            timer.cb ();
+        auto cb = timer.cb;
+        timer.mutex.unlock ();
+        if (cb)
+            cb ();
     }
 
 
@@ -98,11 +101,20 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int TimerConnection::set (unsigned timeout, unsigned repeat, std::function<void()> callback)
     {
-        // Cancel pending read operation
-        cancel (true, false);
+        std::lock_guard<std::mutex> lock (mutex);
+
+        // Sanity check
+        errno = 0;
+        if (fd == -1) {
+            errno = EBADF;
+            return -1;
+        }
+
+        // Cancel timer if already active
+        cancel_impl ();
 
         if (callback == nullptr)
-            return 0;
+            return 0; // Don't set the timer without a callback
 
         struct itimerspec it;
         bool repeating = repeat != 0;
@@ -111,7 +123,8 @@ namespace iomultiplex {
         if (timeout == 0) {
             // Expire as soon as possible
             it.it_value.tv_sec  = 0;
-            it.it_value.tv_nsec = 1; // 1 nanosecond, almost immediately
+            it.it_value.tv_nsec = 1; // 1 nanosecond, almost immediately.
+                                     // A value of zero would disarm the timer.
         }else{
             it.it_value.tv_sec = timeout / 1000;
             timeout = timeout % 1000;
@@ -128,33 +141,47 @@ namespace iomultiplex {
         }
 
         // Activate the timer
-        int result = timerfd_settime (fd, 0, &it, nullptr);
-        if (result < 0)
+        if (timerfd_settime(fd, 0, &it, nullptr))
             return -1;
 
         // Callback
         cb = callback;
 
         // Queue a read operation for the timer expiration
-        read (&overrun, sizeof(overrun), [repeating](io_result_t& ior)->bool{
+        auto result = read (&overrun, sizeof(overrun), [repeating](io_result_t& ior)->bool{
                 timer_cb (ior, repeating);
                 return false;
             });
+        if (result) {
+            auto tmp_errno = errno;
+            cancel_impl ();
+            errno = tmp_errno;
+        }
 
-        return 0;
+        return result;
     }
 
 
     //--------------------------------------------------------------------------
+    // timeout is an absolute time
     //--------------------------------------------------------------------------
     int TimerConnection::set (const struct timespec& timeout,
                               std::function<void()> callback)
     {
-        // Cancel pending read operation
-        io_handler().cancel (*this, true, false);
+        std::lock_guard<std::mutex> lock (mutex);
+
+        // Sanity check
+        errno = 0;
+        if (fd == -1) {
+            errno = EBADF;
+            return -1;
+        }
+
+        // Cancel timer if already active
+        cancel_impl ();
 
         if (callback == nullptr)
-            return 0;
+            return 0; // Don't set the timer without a callback
 
         // Callback
         cb = callback;
@@ -163,24 +190,39 @@ namespace iomultiplex {
         itimerspec it;
         it.it_value = timeout;
         it.it_interval = {0, 0};
-        if (timerfd_settime (fd, TFD_TIMER_ABSTIME, &it, nullptr))
+        if (timerfd_settime(fd, TFD_TIMER_ABSTIME, &it, nullptr))
             return -1;
 
         // Queue a read operation for the timer expiration
-        read (&overrun, sizeof(overrun), [](io_result_t& ior)->bool{
+        auto result = read (&overrun, sizeof(overrun), [](io_result_t& ior)->bool{
                 timer_cb (ior, false);
                 return false;
             });
+        if (result < 0) {
+            auto tmp_errno = errno;
+            cancel_impl ();
+            errno = tmp_errno;
+        }
 
-        return 0;
+        return result;
     }
 
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void TimerConnection::cancel (bool cancel_rx, bool cancel_tx)
+    void TimerConnection::cancel (bool cancel_rx, bool cancel_tx, bool fast)
     {
-        FdConnection::cancel (true, true);
+        std::lock_guard<std::mutex> lock (mutex);
+        cancel_impl ();
+    }
+
+
+    //--------------------------------------------------------------------------
+    // mutex is locked !!!
+    //--------------------------------------------------------------------------
+    void TimerConnection::cancel_impl ()
+    {
+        io_handler().cancel (*this, true, false, true);
         if (fd != -1) {
             struct itimerspec it {0};
             timerfd_settime (fd, 0, &it, nullptr); // Disarm the timer

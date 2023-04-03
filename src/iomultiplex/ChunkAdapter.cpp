@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -372,9 +372,10 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void ChunkAdapter::cancel (bool cancel_rx, bool cancel_tx)
+    void ChunkAdapter::cancel (bool cancel_rx,
+                               bool cancel_tx,
+                               bool fast)
     {
-        Adapter::cancel (cancel_rx, cancel_tx);
         if (cancel_rx) {
             if (rx_buf)
                 rx_buf.reset ();
@@ -387,6 +388,7 @@ namespace iomultiplex {
             tx_buf_size = 0;
             tx_buf_pos = 0;
         }
+        Adapter::cancel (cancel_rx, cancel_tx, fast);
     }
 
 

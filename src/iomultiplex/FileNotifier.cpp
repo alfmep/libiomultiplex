@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -107,12 +107,13 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void FileNotifier::cancel (bool cancel_rx, bool cancel_tx)
+    void FileNotifier::cancel (bool cancel_rx,
+                               bool cancel_tx,
+                               bool fast)
     {
         std::lock_guard<std::mutex> lock (watch_mutex);
         watchers.clear ();
-        ::close (fd);
-        fd = -1;
+        close ();
     }
 
 
@@ -134,7 +135,7 @@ namespace iomultiplex {
                 inotify_rm_watch (fd, ie.wd);
             }
         }
-        if (fd >= 0)
+        if (fd >= 0  &&  ior.errnum != ECANCELED)
             read (ior.buf, pool.buf_size(), [this, callback](io_result_t& ior)->bool{
                                                 notified (ior, callback);
                                                 return true;

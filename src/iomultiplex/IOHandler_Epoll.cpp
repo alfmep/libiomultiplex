@@ -692,6 +692,95 @@ namespace iomultiplex {
 
 
     //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void IOHandler_Epoll::cancel (Connection& conn,
+                                  bool rx,
+                                  bool tx,
+                                  bool fast)
+    {
+        if (!rx && !tx)
+            return;
+
+        std::unique_lock<std::mutex> lock (ops_mutex);
+
+        auto fd = conn.handle ();
+        if (fd < 0)
+            return; // Invalid file handle
+
+        if (state == state_t::stopping)
+            return; // I/O handler stopping and cleaning up
+
+        auto io_ops = ops_map.find (fd);
+        if (io_ops == ops_map.end())
+            return; // No I/O operations found for this file descriptor
+
+        auto& rx_op_list {io_ops->RX_LIST};
+        auto& tx_op_list {io_ops->TX_LIST};
+
+        if (rx && rx_op_list.empty())
+            rx = false;
+        if (tx && tx_op_list.empty())
+            tx = false;
+
+        if (!rx && !rx)
+            return; // No operations left to cancel
+
+        if (fast) {
+            //
+            // Cancel all I/O operatons directly
+            // without calling any of the operations
+            // callback functions.
+            //
+            if (rx) {
+                rx_cancel_map.erase (fd);
+                rx_op_list.clear ();
+            }
+            if (tx) {
+                tx_cancel_map.erase (fd);
+                tx_op_list.clear ();
+            }
+
+            // Update the epoll events for this file descriptor
+            //
+            if (rx_op_list.empty() && tx_op_list.empty()) {
+                // No more I/O operations for this file descriptor
+                epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+                ops_map.erase (io_ops);
+            }else{
+                struct epoll_event event;
+                event.data.fd = fd;
+                if (rx)
+                    event.events = EPOLLOUT; // RX operations cancelled, we still have TX operations
+                if (tx)
+                    event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
+                epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
+            }
+        }else{
+            //
+            // Cancel all I/O operations in an ordelry fashion,
+            // and call the operations callback functions.
+            // Until all operations for this connection are
+            // cancelled, new operations of the same type
+            // that are cancelled are allowed.
+            //
+            if (rx && rx_cancel_map.emplace(fd).second==false)
+                rx = false;
+            if (tx && tx_cancel_map.emplace(fd).second==false)
+                tx = false;
+
+            if (rx || tx) {
+                if (state == state_t::stopped) {
+                    cancel_while_stopped (conn, rx, tx);
+                }else if (!same_context()) {
+                    // Interrupt epoll_pwait() to handle cancelled I/O operations
+                    interrupt_epoll ();
+                }
+            }
+        }
+    }
+
+
+    //--------------------------------------------------------------------------
     // ops_mutex is locked!
     //--------------------------------------------------------------------------
     void IOHandler_Epoll::cancel_while_stopped (Connection& conn, bool rx, bool tx)
@@ -726,44 +815,6 @@ namespace iomultiplex {
             if (tx)
                 event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
             epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
-        }
-    }
-
-
-    //--------------------------------------------------------------------------
-    //--------------------------------------------------------------------------
-    void IOHandler_Epoll::cancel (Connection& conn, bool rx, bool tx)
-    {
-        if (!rx && !tx)
-            return;
-
-        auto fd = conn.handle ();
-        if (fd < 0)
-            return; // Invalid file handle
-
-        std::unique_lock<std::mutex> lock (ops_mutex);
-        if (state == state_t::stopping)
-            return; // I/O handler stopping and cleaning up
-
-        auto entry = ops_map.find (fd);
-        if (entry == ops_map.end())
-            return; // No I/O operations found
-
-        auto& rx_op_list {entry->RX_LIST};
-        auto& tx_op_list {entry->TX_LIST};
-
-        if (rx && (rx_op_list.empty() || rx_cancel_map.emplace(fd).second==false))
-            rx = false;
-        if (tx && (tx_op_list.empty() || tx_cancel_map.emplace(fd).second==false))
-            tx = false;
-
-        if (rx || tx) {
-            if (state == state_t::stopped) {
-                cancel_while_stopped (conn, rx, tx);
-            }else if (!same_context()) {
-                // Interrupt epoll_pwait() to handle cancelled I/O operations
-                interrupt_epoll ();
-            }
         }
     }
 

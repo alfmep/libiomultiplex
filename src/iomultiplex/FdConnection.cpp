@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -121,10 +121,12 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void FdConnection::cancel (bool cancel_rx, bool cancel_tx)
+    void FdConnection::cancel (bool cancel_rx,
+                               bool cancel_tx,
+                               bool fast)
     {
         if (ioh)
-            ioh->cancel (*this, cancel_rx, cancel_tx);
+            ioh->cancel (*this, cancel_rx, cancel_tx, fast);
     }
 
 

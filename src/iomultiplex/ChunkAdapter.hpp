@@ -163,7 +163,9 @@ namespace iomultiplex {
                                size_t num_chunks,
                                unsigned timeout=-1);
 
-        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
+        virtual void cancel (bool cancel_rx=true,
+                             bool cancel_tx=true,
+                             bool fast=false);
 
 
     private:

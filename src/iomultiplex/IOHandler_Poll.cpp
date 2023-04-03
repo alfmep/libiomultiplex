@@ -528,7 +528,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    void IOHandler_Poll::cancel (Connection& conn, bool rx, bool tx)
+    void IOHandler_Poll::cancel (Connection& conn, bool rx, bool tx, bool fast)
     {
         if (!rx && !tx)
             return;

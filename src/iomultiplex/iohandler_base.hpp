@@ -170,15 +170,25 @@ namespace iomultiplex {
          * specified connection. The pending I/O operations
          * will have a result of -1 and <code>errnum</code>
          * set to <code>ECANCELED</code>.
+         *
+         * @note Until all I/O queued operations for the connection
+         * are cancelled, trying to queue an I/O operation of the same
+         * type (RX and/or TX), for the same connection, will fail with
+         * <code>errno</code> being set to <code>ECANCELED</code>.
+         *
          * @param conn The connection for which to cancel RX/TX operations.
          * @param cancel_rx If <code>true</code> (default),
          *                  cancel all RX operations.
          * @param cancel_tx If <code>true</code> (default),
          *                  cancel all TX operations.
+         * @param fast If <code>true</code>, all queued I/O operations
+         *             for this connection are removed immediately
+         *             without the associated callback being called.
          */
         virtual void cancel (Connection& conn,
                              bool cancel_rx=true,
-                             bool cancel_tx=true) = 0;
+                             bool cancel_tx=true,
+                             bool fast=false) = 0;
 
         /**
          * Check if the I/O handler is running in the same

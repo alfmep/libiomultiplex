@@ -102,7 +102,9 @@ namespace iomultiplex {
          */
         virtual iohandler_base& io_handler ();
 
-        virtual void cancel (bool cancel_rx=true, bool cancel_tx=true);
+        virtual void cancel (bool cancel_rx=true,
+                             bool cancel_tx=true,
+                             bool fast=false);
         virtual void close ();
 
         /**
