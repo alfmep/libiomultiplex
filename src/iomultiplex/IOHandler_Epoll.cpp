@@ -746,6 +746,8 @@ namespace iomultiplex {
                 // No more I/O operations for this file descriptor
                 epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
                 ops_map.erase (io_ops);
+                if (fd_map_entry_removed.first == fd)
+                    fd_map_entry_removed.second = true; // fd removed from ops_map
             }else{
                 struct epoll_event event;
                 event.data.fd = fd;
