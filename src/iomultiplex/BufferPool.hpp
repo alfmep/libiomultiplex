@@ -114,7 +114,7 @@ namespace iomultiplex {
         const size_t grow_num;
         size_t top;
         std::vector<char*> chunks;
-        std::forward_list<std::unique_ptr<char>> buffers;
+        std::forward_list<std::unique_ptr<char[]>> buffers;
         std::mutex mutex;
         bool grow (size_t num);
     };

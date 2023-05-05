@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -71,7 +71,7 @@ private:
     size_t max_write_size;
     size_t total_write_size;
     tftp_pkt_t* pkt;
-    std::unique_ptr<char> buf;
+    std::unique_ptr<char[]> buf;
     tftp_pkt_t ack;
     int retry_count;
     int num_wrong_block;

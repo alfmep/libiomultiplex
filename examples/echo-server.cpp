@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -234,7 +234,7 @@ static void init_signal_handler ()
 //------------------------------------------------------------------------------
 static void on_rx (appdata_t& app,
                    shared_ptr<iom::Connection> conn,
-                   shared_ptr<char> buf,
+                   shared_ptr<char[]> buf,
                    string peer,
                    iom::io_result_t& ior)
 {
@@ -278,7 +278,7 @@ static void on_rx (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_udp_rx (appdata_t& app,
-                       shared_ptr<char> buf,
+                       shared_ptr<char[]> buf,
                        string peer,
                        iom::io_result_t& ior)
 {
@@ -325,7 +325,7 @@ static void start_rx (appdata_t& app,
                              shared_ptr<iom::Connection> conn,
                              string peer)
 {
-    shared_ptr<char> buf (new char[buf_size]);
+    shared_ptr<char[]> buf (new char[buf_size]);
     conn->read (buf.get(),
                 buf_size,
                 [&app, conn, peer, buf](iom::io_result_t& ior)->bool{
@@ -423,7 +423,7 @@ static void on_accept (appdata_t& app,
 //------------------------------------------------------------------------------
 static void on_dtls_handshake (appdata_t& app,
                                shared_ptr<iom::Connection> conn,
-                               shared_ptr<char> buf,
+                               shared_ptr<char[]> buf,
                                string peer,
                                int errnum,
                                const std::string& errstr)
@@ -452,7 +452,7 @@ static void on_dtls_handshake (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_datagram_rx (appdata_t& app,
-                            shared_ptr<char> buf,
+                            shared_ptr<char[]> buf,
                             const iom::SockAddr& peer_addr,
                             iom::io_result_t& ior)
 {
@@ -599,7 +599,7 @@ int main (int argc, char* argv[])
     if (app.udp) {
         // Start accepting UDP clients
         //accept_udp (app);
-        shared_ptr<char> buf (new char[buf_size]);
+        shared_ptr<char[]> buf (new char[buf_size]);
         app.srv_sock.recvfrom (buf.get(),
                                buf_size,
                                [&app, buf](iom::SocketConnection& ss, iom::io_result_t& ior, const iom::SockAddr& peer_addr){
