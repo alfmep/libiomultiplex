@@ -21,6 +21,7 @@
 
 #include <iomultiplex/FdConnection.hpp>
 #include <iomultiplex/termios_cfg.hpp>
+#include <string>
 #include <memory>
 #include <atomic>
 #include <sys/types.h>

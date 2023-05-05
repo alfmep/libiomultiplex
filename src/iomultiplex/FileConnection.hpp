@@ -20,6 +20,7 @@
 #define IOMULTIPLEX_FILECONNECTION_HPP
 
 #include <iomultiplex/FdConnection.hpp>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -23,6 +23,7 @@
 #include <mutex>
 #include <vector>
 #include <forward_list>
+#include <system_error>
 #include <cstddef>
 
 

@@ -20,6 +20,7 @@
 #define IOMULTIPLEX_TIMERCONNECTION_HPP
 
 #include <iomultiplex/FdConnection.hpp>
+#include <system_error>
 #include <functional>
 #include <cstdint>
 
@@ -40,6 +41,7 @@ namespace iomultiplex {
          * Creates a timer object.
          * @param io_handler An iohandler_base object responsible for the I/O handling.
          * @param clock_id The clock to use.
+         * @throw std::system_error If a timer can't be created.
          */
         TimerConnection (iohandler_base& io_handler, int clock_id=CLOCK_BOOTTIME);
 
