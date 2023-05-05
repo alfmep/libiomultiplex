@@ -20,7 +20,7 @@
 if ENABLE_EXAMPLES_SET
 
 AM_CPPFLAGS = -I$(srcdir)/../src -I../src -D_GNU_SOURCE -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${localstatedir}"' -DRUNSTATEDIR='"${runstatedir}"'
-AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread
+AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread -Wno-psabi
 AM_LDFLAGS = -pthread -lresolv
 
 LDADD = -L../src -liomultiplex
