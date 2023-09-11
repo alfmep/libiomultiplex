@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
-AC_INIT([libiomultiplex], [0.2.2], [dan@ultramarin.se])
+AC_INIT([libiomultiplex], [0.3.0], [dan@ultramarin.se])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign dist-bzip2 subdir-objects])
 
 AC_PROG_CC
@@ -32,7 +32,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_SILENT_RULES([yes])
 
 #
-# Release 0.2.2
+# Release 0.3.0
 #
 # Library interface version x:y:z
 #                           | | |
@@ -44,7 +44,7 @@ AM_SILENT_RULES([yes])
 #
 # Library version (CURRENT:REVISION:AGE)
 #
-LIBRARY_VERSION=2:2:2
+LIBRARY_VERSION=3:0:3
 AC_SUBST([LIBRARY_VERSION])
 
 #
