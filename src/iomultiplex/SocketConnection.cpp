@@ -301,14 +301,14 @@ namespace iomultiplex {
         //
         if (handle() < 0) {
             TRACE ("bind() failed: Socket not open");
-            errno = EINVAL;
+            errno = EBADF;
             return -1;
         }
         if (addr.family() != local_addr->family()) {
             TRACE ("bind() failed: invalid socket type: %s, expected: %s",
                    sock_family_to_string(addr.family()).c_str(),
                    sock_family_to_string(local_addr->family()).c_str());
-            errno = EINVAL;
+            errno = EAFNOSUPPORT;
             return -1;
         }
 
@@ -316,9 +316,11 @@ namespace iomultiplex {
 
         TRACE ("Bind socket %d to address %s", handle(), addr.to_string().c_str());
         if (::bind(handle(), local_addr->data(), local_addr->size())) {
-            auto errnum = errno;
-            TRACE ("bind() failed: %s", strerror(errno));
-            errno = errnum;
+#ifdef TRACE_DEBUG
+            auto errnum = errno; // The log function may change errno
+            TRACE ("bind() failed: %s", strerror(errnum));
+            errno = errnum; // Restore errno
+#endif
             return -1;
         }
         bound = true;
@@ -352,12 +354,12 @@ namespace iomultiplex {
         //
         if (handle() < 0) {
             TRACE ("connect() failed: Socket not open");
-            errno = EINVAL;
+            errno = EBADF;
             return -1;
         }
         if (addr.family() != local_addr->family()) {
-            TRACE ("connect() failed: invalid socket type");
-            errno = EINVAL;
+            TRACE ("connect() failed: invalid socket addres type");
+            errno = EAFNOSUPPORT;
             return -1;
         }
 
@@ -389,19 +391,74 @@ namespace iomultiplex {
             connected = true;
         }else{
             // Wait in background for connection to finish
-            wait_for_tx ([this, callback](io_result_t& ior)->bool{
+            result = wait_for_tx ([this, callback](io_result_t& ior)->bool{
                     if (ior.errnum == 0) {
                         socklen_t optlen = sizeof (ior.errnum);
                         if (getsockopt(SO_ERROR, &ior.errnum, &optlen))
                             ior.errnum = errno; // getsockopt failed
                     }
                     connected = ior.errnum == 0;
+#ifdef TRACE_DEBUG
+                    if (connected)
+                        TRACE ("Socket %d connected to %s", handle(), peer_addr->to_string().c_str());
+                    else
+                        TRACE ("Socket %d failed connection to %s: %s",
+                               handle(), peer_addr->to_string().c_str(), strerror(ior.errnum));;
+#endif
                     if (callback)
                         callback (*this, ior.errnum);
                     return true;
                 }, timeout);
         }
+        if (result)
+            return -1;
+
         errno = 0;
+        return 0;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // Synchronized operation using a datagram socket
+    //--------------------------------------------------------------------------
+    int SocketConnection::connect_using_datagram (const SockAddr& addr)
+    {
+        TRACE ("Connecting a datagram socket");
+
+        // Sanity checks
+        if (handle() < 0) {
+            TRACE ("connect() failed: Socket not open");
+            errno = EBADF;
+            return -1;
+        }
+        if (addr.family() != local_addr->family()) {
+            TRACE ("connect() failed: invalid socket type");
+            errno = EAFNOSUPPORT;
+            return -1;
+        }
+
+        errno = 0;
+        auto result = ::connect (handle(), addr.data(), addr.size());
+        if (result) {
+#ifdef TRACE_DEBUG
+            auto errnum = errno; // The log function may change errno
+            TRACE ("connect() socket %d failed to connect to %s: %s",
+                   handle(), addr.to_string().c_str(), strerror(errnum));
+            errno = errnum; // Restore errno
+#endif
+            return -1;
+        }
+
+        // Update the remote and local address
+        peer_addr = addr.clone ();
+        if (local_addr->size()==0)
+            local_addr = peer_addr->clone ();
+        socklen_t slen = local_addr->size ();
+        if (getsockname(handle(), const_cast<struct sockaddr*>(local_addr->data()), &slen))
+            local_addr->clear ();
+
+        TRACE ("Socket %d connected to %s", handle(), peer_addr->to_string().c_str());
+        connected = true;
         return 0;
     }
 
@@ -412,14 +469,21 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     int SocketConnection::connect (const SockAddr& addr, unsigned timeout)
     {
+        if (type() == SOCK_DGRAM)
+            return connect_using_datagram (addr);
+
         if (io_handler().same_context()) {
             errno = EDEADLK;
             return -1;
         }
+
+        TRACE ("connecting a stream socket");
+
         bool io_done = false;
         int errnum = 0;
         int retval = -1;
         errno = 0;
+
         // Initiate connection
         if (connect(addr,
                     [this, &errnum, &io_done](SocketConnection& conn, int err){
@@ -463,17 +527,19 @@ namespace iomultiplex {
     {
         if (handle() < 0) {
             TRACE ("listen() failed: Socket not open");
-            errno = EINVAL;
+            errno = EBADF;
             return -1;
         }
         errno = 0;
         TRACE ("Set socket %d to listen state", handle());
         auto result = ::listen (handle(), backlog);
+#ifdef TRACE_DEBUG
         if (result) {
-            auto errnum = errno;
+            auto errnum = errno; // The log function may change errno
             TRACE ("listen() failed: %s", strerror(errnum));
-            errno = errnum;
+            errno = errnum; // Restore errno
         }
+#endif
         return result;
     }
 
@@ -484,7 +550,7 @@ namespace iomultiplex {
     {
         if (handle() < 0) {
             TRACE ("accept() failed: Socket not open");
-            errno = EINVAL;
+            errno = EBADF;
             return -1;
         }
 
@@ -582,7 +648,7 @@ namespace iomultiplex {
     {
         if (handle() < 0) {
             TRACE ("recvfrom() failed: Socket not open");
-            errno = EINVAL;
+            errno = EBADF;
             return -1;
         }
         errno = 0;
@@ -665,12 +731,12 @@ namespace iomultiplex {
     {
         if (handle() < 0) {
             TRACE ("sendto() failed: Socket not open");
-            errno = EINVAL;
+            errno = EBADF;
             return -1;
         }
         if (peer.family() != local_addr->family()) {
             TRACE ("sendto() failed: invalid peer socket type");
-            errno = EINVAL;
+            errno = EAFNOSUPPORT;
             return -1;
         }
 

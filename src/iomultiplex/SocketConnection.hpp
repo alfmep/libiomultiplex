@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -173,9 +173,10 @@ namespace iomultiplex {
         int accept (accept_cb_t callback, unsigned timeout=-1);
 
         /**
-         * Accept an incoming connection.
+         * Synchronized call to accept an incoming connection.
          * @param timeout A timeout in milliseconds. If -1, no timeout is set.
-         * @return A pointer to a SocketConnection, or nullptr on error.
+         * @return A pointer to a SocketConnection, or nullptr on error
+         *         and <code>errno</code> is set.
          */
         std::shared_ptr<SocketConnection> accept (unsigned timeout=-1);
 
@@ -355,6 +356,7 @@ namespace iomultiplex {
         SocketConnection (const SocketConnection& c) = delete;
         SocketConnection& operator= (const SocketConnection& conn) = delete;
 
+        int connect_using_datagram (const SockAddr& addr);
         void handle_accept_result (accept_cb_t cb, int errnum);
 
         std::atomic_bool connected;            // Connected to a peer
