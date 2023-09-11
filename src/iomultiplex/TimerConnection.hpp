@@ -74,7 +74,7 @@ namespace iomultiplex {
          *         If the timer can't be activated, -1 is returned
          *         and <code>errno</code> is set.
          */
-        int set (unsigned timeout_ms, std::function<void()> callback) {
+        inline int set (unsigned timeout_ms, std::function<void()> callback) {
             return set (timeout_ms, 0, callback);
         }
 
@@ -105,7 +105,27 @@ namespace iomultiplex {
          *         If the timer can't be activated, -1 is returned
          *         and <code>errno</code> is set.
          */
-        int set (const struct timespec& timeout, std::function<void()> callback);
+        inline int set_abs (const struct timespec& timeout, std::function<void()> callback) {
+            return set_abs (timeout, {0,0}, callback);
+        }
+
+        /**
+         * Activate the timer with an absolute time in the future.
+         * @param timeout The absolute time of the timeout.
+         * @param repeat If set to other than 0, after the initial timeout
+         *               has expired, the callback will repeatedly be called
+         *               with an interval specified in this parameter until
+         *               cancelled or closed.
+         * @param callback The callback function to call when the timer expires.
+         *                 <br/>If this parameter is a <code>nullptr</code>,
+         *                 the timer is deactivated (if currently activated).
+         * @return 0 on success.
+         *         If the timer can't be activated, -1 is returned
+         *         and <code>errno</code> is set.
+         */
+        int set_abs (const struct timespec& timeout,
+                     const struct timespec& repeat,
+                     std::function<void()> callback);
 
         /**
          * Cancel the timer.

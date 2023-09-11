@@ -29,6 +29,14 @@
 namespace iomultiplex {
 
 
+//#define TRACE_DEBUG
+
+#ifdef TRACE_DEBUG
+#  define TRACE(format, ...) Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__);
+#else
+#  define TRACE(format, ...)
+#endif
+
 #define LOG_PREFIX "TimerConnection"
 
 
@@ -81,6 +89,9 @@ namespace iomultiplex {
         }
 
         TimerConnection& timer = dynamic_cast<TimerConnection&> (ior.conn);
+
+        TRACE ("Overrun: %u", (unsigned)timer.overrun);;
+
         timer.mutex.lock ();
         if (repeat) {
             timer.read (&timer.overrun, sizeof(timer.overrun), [](io_result_t& ior)->bool
@@ -164,9 +175,11 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     // timeout is an absolute time
+    // repeat is a relative time
     //--------------------------------------------------------------------------
-    int TimerConnection::set (const struct timespec& timeout,
-                              std::function<void()> callback)
+    int TimerConnection::set_abs (const struct timespec& timeout,
+                                  const struct timespec& repeat,
+                                  std::function<void()> callback)
     {
         std::lock_guard<std::mutex> lock (mutex);
 
@@ -189,15 +202,17 @@ namespace iomultiplex {
         // Activate the timer
         itimerspec it;
         it.it_value = timeout;
-        it.it_interval = {0, 0};
+        it.it_interval = repeat;
+        bool repeating = repeat.tv_sec || repeat.tv_nsec;
         if (timerfd_settime(fd, TFD_TIMER_ABSTIME, &it, nullptr))
             return -1;
 
         // Queue a read operation for the timer expiration
-        auto result = read (&overrun, sizeof(overrun), [](io_result_t& ior)->bool{
-                timer_cb (ior, false);
-                return false;
-            });
+        auto result = read (&overrun, sizeof(overrun), [repeating](io_result_t& ior)->bool{
+            // I/O callback context
+            timer_cb (ior, repeating);
+            return false;
+        });
         if (result < 0) {
             auto tmp_errno = errno;
             cancel_impl ();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -139,7 +139,7 @@ namespace iomultiplex {
 
         // Activate the timer if needed
         if (activate_timer) {
-            timer.set (abs, [this, id=next_id](){
+            timer.set_abs (abs, [this, id=next_id](){
                     timer_expired (id);
                 });
         }
@@ -171,7 +171,7 @@ namespace iomultiplex {
             auto first = times.begin ();
             auto& abs_time = std::get<idx_timeout> (*first);
             auto id = std::get<idx_id> (*first);
-            timer.set (abs_time, [this, id](){
+            timer.set_abs (abs_time, [this, id](){
                     timer_expired (id);
                 });
         }
@@ -220,7 +220,7 @@ namespace iomultiplex {
             auto first = times.begin ();
             auto& abs_time = std::get<idx_timeout> (*first);
             auto id = std::get<idx_id> (*first);
-            timer.set (abs_time, [this, id](){
+            timer.set_abs (abs_time, [this, id](){
                     timer_expired (id);
                 });
         }
