@@ -651,16 +651,18 @@ namespace iomultiplex {
                 }
                 TRACE_POLL ("epoll_ctl (%s, %d, %s)",
                             epoll_op_to_string(op).c_str(), fd, events_to_string(event.events).c_str());
-                if (epoll_ctl(ctl_fd, op, fd, &event)) {
+                if (epoll_ctl(ctl_fd, op, fd, &event) &&
+                    (op != EPOLL_CTL_ADD || errno != EEXIST)) // Ignore EEXIST on EPOLL_CTL_ADD
+                {
                     int errnum = errno; // save errno
                     if (is_fd_a_file(fd)) {
-                        Log::warning ("Can't use epoll with regular files");
+                        Log::warning ("Can't use epoll with regular files, fd: %d", fd);
                     }else{
                         Log::warning ("epoll_ctl(%s, %d, %s) failed: %s",
                                       epoll_op_to_string(op).c_str(),
                                       fd,
                                       events_to_string(event.events).c_str(),
-                                      strerror(errno));
+                                      strerror(errnum));
                     }
                     if (new_ops_map_entry)
                         ops_map.erase (entry);
@@ -701,11 +703,17 @@ namespace iomultiplex {
         if (!rx && !tx)
             return;
 
-        std::unique_lock<std::mutex> lock (ops_mutex);
+        TRACE ("Cancel%s%s%s for fd %d",
+               (rx ? " RX" : ""),
+               (tx ? " TX" : ""),
+               (fast ? " fast" : ""),
+               conn.handle());
 
         auto fd = conn.handle ();
         if (fd < 0)
             return; // Invalid file handle
+
+        std::unique_lock<std::mutex> lock (ops_mutex);
 
         if (state == state_t::stopping)
             return; // I/O handler stopping and cleaning up
@@ -744,6 +752,8 @@ namespace iomultiplex {
             //
             if (rx_op_list.empty() && tx_op_list.empty()) {
                 // No more I/O operations for this file descriptor
+                TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
+                            epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
                 epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
                 ops_map.erase (io_ops);
                 if (fd_map_entry_removed.first == fd)
@@ -755,6 +765,8 @@ namespace iomultiplex {
                     event.events = EPOLLOUT; // RX operations cancelled, we still have TX operations
                 if (tx)
                     event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
+                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                            epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
                 epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
             }
         }else{
@@ -807,6 +819,8 @@ namespace iomultiplex {
 
         if (entry->RX_LIST.empty() && entry->TX_LIST.empty()) {
             // All operations for this file descriptor are cancelled
+            TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
+                        epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
             epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
             ops_map.erase (entry);
         }else{
@@ -816,6 +830,8 @@ namespace iomultiplex {
                 event.events = EPOLLOUT; // RX operations cancelled, we still have TX operations
             if (tx)
                 event.events = EPOLLIN;  // TX operations cancelled, we still have RX operations
+            TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                        epoll_op_to_string(EPOLL_CTL_MOD).c_str(), fd, events_to_string(event.events).c_str());
             epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event); // Modify poll events
         }
     }
@@ -878,6 +894,8 @@ namespace iomultiplex {
                             ioop_list.clear ();
                             if (other_ioop_list.empty()) {
                                 // Neither RX nor TX operations left for this file descriptor
+                                TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
+                                            epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
                                 epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
                                 ops_map.erase (ops_map_entry);
                             }else{
@@ -885,6 +903,9 @@ namespace iomultiplex {
                                 struct epoll_event event;
                                 event.data.fd = fd;
                                 event.events = op_type==rx_op ? EPOLLOUT : EPOLLIN;
+                                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                                            epoll_op_to_string(EPOLL_CTL_MOD).c_str(),
+                                            fd, events_to_string(event.events).c_str());
                                 epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
                             }
                         }
@@ -972,8 +993,8 @@ namespace iomultiplex {
             if (new_epoll_events != current_epoll_events) {
                 if (new_epoll_events == 0) {
                     // No more TX/RX operations
-                    TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                                epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
+                    TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
+                                epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
                     epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
                 }else{
                     struct epoll_event event;
@@ -1131,8 +1152,8 @@ namespace iomultiplex {
         if (new_epoll_events != current_epoll_events) {
             if (new_epoll_events == 0) {
                 // No more TX/RX operations
-                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                            epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd, "");
+                TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
+                            epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
                 epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
             }else{
                 struct epoll_event event;
