@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -880,35 +880,42 @@ namespace iomultiplex {
                     int fd = *fd_entry;
 
                     auto ops_map_entry = ops_map.find (fd);
-                    if (ops_map_entry != ops_map.end()) {
-                        auto& ioop_list = op_type==rx_op ? ops_map_entry->RX_LIST : ops_map_entry->TX_LIST;
-                        auto& other_ioop_list = op_type==rx_op ? ops_map_entry->TX_LIST : ops_map_entry->RX_LIST;
-                        bool ops_cancelled = false;
-                        for (auto& ioop : ioop_list) {
-                            ops_cancelled = true;
-                            // Callbacks can't add operations for this fd since it's cancelling
-                            call_ioop_cb (*ioop, -1, ECANCELED);
-                        }
-                        // Only modify epoll events if operations were actually removed
-                        if (ops_cancelled) {
-                            ioop_list.clear ();
-                            if (other_ioop_list.empty()) {
-                                // Neither RX nor TX operations left for this file descriptor
-                                TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
-                                            epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
-                                epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
-                                ops_map.erase (ops_map_entry);
-                            }else{
-                                // Only RX or TX operations left for this file desccriptor
-                                struct epoll_event event;
-                                event.data.fd = fd;
-                                event.events = op_type==rx_op ? EPOLLOUT : EPOLLIN;
-                                TRACE_POLL ("epoll_ctl (%s, %d, %s)",
-                                            epoll_op_to_string(EPOLL_CTL_MOD).c_str(),
-                                            fd, events_to_string(event.events).c_str());
-                                epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
-                            }
-                        }
+                    if (ops_map_entry == ops_map.end()) {
+                        cancel_map[op_type]->erase (fd_entry);
+                        continue;
+                    }
+
+                    auto& ioop_list = op_type==rx_op ? ops_map_entry->RX_LIST : ops_map_entry->TX_LIST;
+                    auto& other_ioop_list = op_type==rx_op ? ops_map_entry->TX_LIST : ops_map_entry->RX_LIST;
+                    bool ops_cancelled = false;
+                    for (auto& ioop : ioop_list) {
+                        ops_cancelled = true;
+                        // Callbacks can't add operations for this fd since it's cancelling
+                        call_ioop_cb (*ioop, -1, ECANCELED);
+                    }
+
+                    // Only modify epoll events if operations were actually removed
+                    if (ops_cancelled == false) {
+                        cancel_map[op_type]->erase (fd_entry);
+                        continue;
+                    }
+
+                    ioop_list.clear ();
+                    if (other_ioop_list.empty()) {
+                        // Neither RX nor TX operations left for this file descriptor
+                        TRACE_POLL ("epoll_ctl (%s, %d, nullptr)",
+                                    epoll_op_to_string(EPOLL_CTL_DEL).c_str(), fd);
+                        epoll_ctl (ctl_fd, EPOLL_CTL_DEL, fd, nullptr);
+                        ops_map.erase (ops_map_entry);
+                    }else{
+                        // Only RX or TX operations left for this file desccriptor
+                        struct epoll_event event;
+                        event.data.fd = fd;
+                        event.events = op_type==rx_op ? EPOLLOUT : EPOLLIN;
+                        TRACE_POLL ("epoll_ctl (%s, %d, %s)",
+                                    epoll_op_to_string(EPOLL_CTL_MOD).c_str(),
+                                    fd, events_to_string(event.events).c_str());
+                        epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
                     }
                     cancel_map[op_type]->erase (fd_entry);
                 }
@@ -1198,10 +1205,10 @@ namespace iomultiplex {
             ++abs_timeout.tv_sec;
             timeout_ms -= 1000;
         }
-        abs_timeout.tv_nsec += timeout_ms * 1000000;
-        if (abs_timeout.tv_nsec >= 1000000000L) {
+        abs_timeout.tv_nsec += timeout_ms * 1'000'000;
+        if (abs_timeout.tv_nsec >= 1'000'000'000L) {
             ++abs_timeout.tv_sec;
-            abs_timeout.tv_nsec -= 1000000000L;
+            abs_timeout.tv_nsec -= 1'000'000'000L;
         }
         timeout_map_pos = timeout_map.emplace (abs_timeout, *this);
     }
