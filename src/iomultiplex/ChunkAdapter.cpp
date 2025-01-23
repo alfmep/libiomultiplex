@@ -166,7 +166,7 @@ namespace iomultiplex {
                                      ior.result = num_chunks;
                                      ior.errnum = 0;
                                      return rx_cb (ior);
-                                 }, timeout);
+                                 }, 0);
                 }
                 return 0;
             }else{
