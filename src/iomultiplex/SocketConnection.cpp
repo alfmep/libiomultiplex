@@ -655,20 +655,16 @@ namespace iomultiplex {
         return wait_for_rx ([this, buf, size, rx_cb](io_result_t& ior)->bool{
                 auto peer = local_addr->clone ();
                 peer->clear ();
+                ior.buf = const_cast<void*> (buf);
+                ior.size = size;
                 if (ior.errnum == 0) {
-                    ior.result = do_recvfrom (buf, size, 0, *peer);
+                    ior.result = do_recvfrom (ior.buf, ior.size, 0, *peer);
                     ior.errnum = ior.result<0 ? errno : 0;
                 }
-                io_result_t res (ior.conn,
-                                 buf,
-                                 size,
-                                 ior.result,
-                                 ior.errnum,
-                                 ior.timeout);
                 if (rx_cb)
-                    rx_cb (*this, res, *peer);
+                    rx_cb (*this, ior, *peer);
                 else if (def_sock_rx_cb)
-                    def_sock_rx_cb (*this, res, *peer);
+                    def_sock_rx_cb (*this, ior, *peer);
                 return false;
             },
             timeout);
@@ -742,24 +738,25 @@ namespace iomultiplex {
 
         errno = 0;
         return wait_for_tx ([this, buf, size, addr=peer.clone(), tx_cb](io_result_t& ior)->bool{
-                ssize_t result = do_sendto (buf, size, 0, *addr);
-                if (result>=0 && local_addr->size()==0) {
-                    // Update local address if not bound to one
-                    local_addr = addr->clone ();
-                    socklen_t slen = local_addr->size ();
-                    if (getsockname(handle(), const_cast<struct sockaddr*>(local_addr->data()), &slen))
-                        local_addr->clear ();
+                ior.buf = const_cast<void*> (buf);
+                ior.size = size;
+                if (ior.result >= 0) {
+                    ior.result = do_sendto (buf, size, 0, *addr);
+                    if (ior.result < 0) {
+                        ior.errnum = errno;
+                    }
+                    else if (local_addr->size()==0) {
+                        // Update local address if not bound to one
+                        local_addr = addr->clone ();
+                        socklen_t slen = local_addr->size ();
+                        if (getsockname(handle(), const_cast<struct sockaddr*>(local_addr->data()), &slen))
+                            local_addr->clear ();
+                    }
                 }
-                io_result_t res (ior.conn,
-                                 const_cast<void*>(buf),
-                                 size,
-                                 result,
-                                 errno<0 ? errno : 0,
-                                 ior.timeout);
                 if (tx_cb)
-                    tx_cb (*this, res, *addr);
+                    tx_cb (*this, ior, *addr);
                 else if (def_sock_tx_cb)
-                    def_sock_tx_cb (*this, res, *addr);
+                    def_sock_tx_cb (*this, ior, *addr);
                 return false;
             },
             timeout);

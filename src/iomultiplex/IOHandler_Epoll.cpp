@@ -29,7 +29,7 @@
 #include <signal.h>
 #include <poll.h>
 #include <unistd.h>
-#include <syscall.h>
+#include <sys/syscall.h>
 #include <sys/timerfd.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
@@ -186,7 +186,7 @@ namespace iomultiplex {
 
         if (rhs.tv_nsec > lhs.tv_nsec) {
             --res.tv_sec;
-            res.tv_nsec = (lhs.tv_nsec + 1000000000L) - rhs.tv_nsec;
+            res.tv_nsec = (lhs.tv_nsec + 1'000'000'000L) - rhs.tv_nsec;
         }else{
             res.tv_nsec = lhs.tv_nsec - rhs.tv_nsec;
         }
@@ -409,7 +409,7 @@ namespace iomultiplex {
         quit = false;
         state = state_t::running;
         worker_tgid = getpid ();
-        worker_tid = (pid_t) syscall (SYS_gettid);
+        worker_tid = gettid ();
         initialize_ctl_signal ();
 
         TRACE ("Start processing I/O");
@@ -508,8 +508,8 @@ namespace iomultiplex {
             entry.TX_LIST.clear ();
         }
 
-        rx_cancel_map.clear ();
-        tx_cancel_map.clear ();
+        rx_cancel_fds.clear ();
+        tx_cancel_fds.clear ();
         ops_map.clear ();
     }
 
@@ -520,7 +520,7 @@ namespace iomultiplex {
     {
         if (worker_tid != invalid_pid) {
             TRACE_SIG ("Send signal %d to thread id %u", ctl_signal, (unsigned)worker_tid);
-            int err = syscall (SYS_tgkill, worker_tgid, worker_tid, ctl_signal);
+            int err = tgkill (worker_tgid, worker_tid, ctl_signal);
             if (err)
                 Log::info ("IOHandler_Epoll: Unable to raise command signal: %s", strerror(err));
         }
@@ -547,7 +547,7 @@ namespace iomultiplex {
             return true;
         }else{
             if (caller_tid == invalid_pid)
-                caller_tid = (pid_t) syscall (SYS_gettid);
+                caller_tid = gettid ();
             return worker_tid == caller_tid;
         }
     }
@@ -586,12 +586,12 @@ namespace iomultiplex {
             errno = ECANCELED;
             return -1;
         }
-        if (read && rx_cancel_map.find(fd)!=rx_cancel_map.end()) {
+        if (read && rx_cancel_fds.find(fd)!=rx_cancel_fds.end()) {
             // RX operations are being cancelled
             errno = ECANCELED;
             return -1;
         }
-        if (!read && tx_cancel_map.find(fd)!=tx_cancel_map.end()) {
+        if (!read && tx_cancel_fds.find(fd)!=tx_cancel_fds.end()) {
             // TX operations are being cancelled
             errno = ECANCELED;
             return -1;
@@ -636,7 +636,7 @@ namespace iomultiplex {
         auto& op_list {read ? entry->RX_LIST : entry->TX_LIST};
 
         bool is_same_context = same_context ();
-        if (fd!=currently_handled_fd || !is_same_context || state!=state_t::running) {
+        if (new_ops_map_entry || fd!=currently_handled_fd || !is_same_context || state!=state_t::running) {
             if (op_list.empty()) {
                 auto& other_op_list {read ? entry->TX_LIST : entry->RX_LIST};
                 int op;
@@ -730,7 +730,7 @@ namespace iomultiplex {
         if (tx && tx_op_list.empty())
             tx = false;
 
-        if (!rx && !rx)
+        if (!rx && !tx)
             return; // No operations left to cancel
 
         if (fast) {
@@ -740,11 +740,11 @@ namespace iomultiplex {
             // callback functions.
             //
             if (rx) {
-                rx_cancel_map.erase (fd);
+                rx_cancel_fds.erase (fd);
                 rx_op_list.clear ();
             }
             if (tx) {
-                tx_cancel_map.erase (fd);
+                tx_cancel_fds.erase (fd);
                 tx_op_list.clear ();
             }
 
@@ -777,9 +777,9 @@ namespace iomultiplex {
             // cancelled, new operations of the same type
             // that are cancelled are allowed.
             //
-            if (rx && rx_cancel_map.emplace(fd).second==false)
+            if (rx && rx_cancel_fds.emplace(fd).second==false)
                 rx = false;
-            if (tx && tx_cancel_map.emplace(fd).second==false)
+            if (tx && tx_cancel_fds.emplace(fd).second==false)
                 tx = false;
 
             if (rx || tx) {
@@ -807,14 +807,14 @@ namespace iomultiplex {
             for (auto& ioop : entry->RX_LIST)
                 call_ioop_cb (*ioop, -1, ECANCELED);
             entry->RX_LIST.clear ();
-            rx_cancel_map.erase (fd);
+            rx_cancel_fds.erase (fd);
         }
         if (tx) {
             // Cancel TX operations
             for (auto& ioop : entry->TX_LIST)
                 call_ioop_cb (*ioop, -1, ECANCELED);
             entry->TX_LIST.clear ();
-            tx_cancel_map.erase (fd);
+            tx_cancel_fds.erase (fd);
         }
 
         if (entry->RX_LIST.empty() && entry->TX_LIST.empty()) {
@@ -855,7 +855,7 @@ namespace iomultiplex {
         if (less(now, later)) {
             timeout = later - now;
             retval = timeout.tv_sec * 1000;
-            retval += (int)(timeout.tv_nsec / 1000000L);
+            retval += (int)(timeout.tv_nsec / 1'000'000L);
         }
 
         return retval;
@@ -871,17 +871,17 @@ namespace iomultiplex {
     {
         static constexpr const int rx_op = 0;
         static constexpr const int tx_op = 1;
-        std::set<int>* cancel_map[2] = {&rx_cancel_map, &tx_cancel_map};
+        std::set<int>* cancel_fds[2] = {&rx_cancel_fds, &tx_cancel_fds};
 
-        while (!cancel_map[rx_op]->empty() || !cancel_map[tx_op]->empty()) {
+        while (!cancel_fds[rx_op]->empty() || !cancel_fds[tx_op]->empty()) {
             for (int op_type=rx_op; op_type<=tx_op; ++op_type) {
-                while (!cancel_map[op_type]->empty()) {
-                    auto fd_entry = cancel_map[op_type]->begin ();
+                while (!cancel_fds[op_type]->empty()) {
+                    auto fd_entry = cancel_fds[op_type]->begin ();
                     int fd = *fd_entry;
 
                     auto ops_map_entry = ops_map.find (fd);
                     if (ops_map_entry == ops_map.end()) {
-                        cancel_map[op_type]->erase (fd_entry);
+                        cancel_fds[op_type]->erase (fd_entry);
                         continue;
                     }
 
@@ -896,7 +896,7 @@ namespace iomultiplex {
 
                     // Only modify epoll events if operations were actually removed
                     if (ops_cancelled == false) {
-                        cancel_map[op_type]->erase (fd_entry);
+                        cancel_fds[op_type]->erase (fd_entry);
                         continue;
                     }
 
@@ -917,7 +917,7 @@ namespace iomultiplex {
                                     fd, events_to_string(event.events).c_str());
                         epoll_ctl (ctl_fd, EPOLL_CTL_MOD, fd, &event);
                     }
-                    cancel_map[op_type]->erase (fd_entry);
+                    cancel_fds[op_type]->erase (fd_entry);
                 }
             }
         }
@@ -1068,7 +1068,7 @@ namespace iomultiplex {
             current_epoll_events |= EPOLLOUT;
 
         auto* ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
-        auto* cancel_map = read ? &tx_cancel_map : &tx_cancel_map;
+        auto* cancel_fds = read ? &tx_cancel_fds : &tx_cancel_fds;
         bool done {false};
         TRACE ("File descriptor %d have %d %s operation(s)", fd, ioop_list->size(), (read?"input":"output"));
         while (!quit && !done && !ioop_list->empty()) {
@@ -1112,35 +1112,34 @@ namespace iomultiplex {
             // Remove this operation from the I/O operation queue
             ioop_list->pop_front ();
 
-            if (ioop->cb == nullptr) {
-                // No I/O callback, done
+            if (ioop->cb == nullptr)
+                break; // No I/O callback, done (perhaps continue instead?)
+
+            fd_map_entry_removed.first = fd;
+            fd_map_entry_removed.second = false;
+
+            ops_mutex.unlock ();
+            if (!ioop->cb(*ioop))
                 done = true;
-            }else{
-                fd_map_entry_removed.first = fd;
-                fd_map_entry_removed.second = false;
-                ops_mutex.unlock ();
-                if (!ioop->cb(*ioop))
+            ops_mutex.lock ();
+
+            // The callback may have invalidated the local variables 'entry' and 'ioop_list'
+            // by calling method 'cancel' and then perhaps 'read'/'write'.
+            if (fd_map_entry_removed.second == true) {
+                // fd map entry is invalid
+                entry = ops_map.find (fd);
+                if (entry != ops_map.end()) {
+                    ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
+                }else{
+                    ioop_list = nullptr;
                     done = true;
-                ops_mutex.lock ();
-
-                // The callback may have invalidated the local variables 'entry' and 'ioop_list'
-                // by calling method 'cancel' and then perhaps 'read'/'write'.
-                if (fd_map_entry_removed.second == true) {
-                    // fd map entry is invalid
-                    entry = ops_map.find (fd);
-                    if (entry != ops_map.end()) {
-                        ioop_list = read ? &(entry->RX_LIST) : &(entry->TX_LIST);
-                    }else{
-                        ioop_list = nullptr;
-                        done = true;
-                    }
                 }
-                fd_map_entry_removed.first = -1; // Invalidate the fd map check
             }
+            fd_map_entry_removed.first = -1; // Invalidate the fd map check
 
-            if (!done && !!ioop_list->empty()) {
+            if (!done && !ioop_list->empty()) {
                 // Before handling the next operation, check if a callback cancelled operations
-                if (cancel_map->find(fd) != cancel_map->end())
+                if (cancel_fds->find(fd) != cancel_fds->end())
                     done = true;
             }
         }

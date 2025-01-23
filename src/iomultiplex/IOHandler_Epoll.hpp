@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -134,8 +134,8 @@ namespace iomultiplex {
         std::pair<int, bool> fd_map_entry_removed; // Items in ops_map erased while processing I/O
         int currently_handled_fd; // The current file descriptor being processed
 
-        std::set<int> rx_cancel_map; // RX file descriptors that are being cancelled
-        std::set<int> tx_cancel_map; // TX file descriptors that are being cancelled
+        std::set<int> rx_cancel_fds; // RX file descriptors that are being cancelled
+        std::set<int> tx_cancel_fds; // TX file descriptors that are being cancelled
 
 
         int initialize_ctl_signal ();
