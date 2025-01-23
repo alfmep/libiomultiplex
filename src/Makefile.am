@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021,2022,2024 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -19,8 +19,8 @@
 lib_LTLIBRARIES = libiomultiplex.la
 
 AM_CPPFLAGS = -I$(srcdir) -D_GNU_SOURCE -DSYSCONFDIR='"${sysconfdir}"' -DLOCALSTATEDIR='"${localstatedir}"'
-AM_LDFLAGS = -pthread -lresolv
-AM_CXXFLAGS = -Wall -pipe -O2 -g -pthread
+AM_LDFLAGS = -lresolv
+AM_CXXFLAGS = -Wall
 AM_LDFLAGS += -version-info @LIBRARY_VERSION@
 
 if HAVE_OPENSSL
