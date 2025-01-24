@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -71,9 +71,9 @@ namespace iomultiplex {
         virtual int run (bool start_worker_thread=false);
         virtual void stop ();
         virtual void cancel (Connection& conn,
-                             bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false);
+                             bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast);
         virtual bool same_context () const;
         virtual void join ();
 

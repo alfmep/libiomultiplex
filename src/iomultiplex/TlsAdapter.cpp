@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -85,7 +85,7 @@ namespace iomultiplex {
     {
         if (tls_active) {
             TRACE ("Shutdown TLS");
-            cancel ();
+            cancel (true, true, false);
             SSL_shutdown (tls);
         }
         // Release TLS resources
@@ -465,7 +465,7 @@ namespace iomultiplex {
             std::unique_lock<std::mutex> lock (sync_mutex);
             sync_cond.wait (lock, [&io_done]{return io_done;});
             if (errnum) {
-                cancel ();
+                cancel (true, true, false);
                 if (tls)
                     SSL_free (tls);
                 if (tls_ctx)

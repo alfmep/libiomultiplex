@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -165,7 +165,7 @@ namespace iomultiplex {
         times.erase (pos);
 
         if (times.empty()) {
-            timer.cancel ();
+            timer.cancel (true, true, true);
         }
         else if (reset_timer) {
             auto first = times.begin ();
@@ -183,7 +183,7 @@ namespace iomultiplex {
     void TimerSet::clear ()
     {
         std::lock_guard<std::mutex> lock (mutex);
-        timer.cancel ();
+        timer.cancel (true, true, true);
         times.clear ();
     }
 

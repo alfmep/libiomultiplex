@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -81,9 +81,9 @@ namespace iomultiplex {
         virtual int handle ();
         virtual bool is_open () const;
         virtual iohandler_base& io_handler ();
-        virtual void cancel (bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false);
+        virtual void cancel (bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast);
         virtual void close ();
         virtual ssize_t do_read (void* buf, size_t size, int& errnum);
         virtual ssize_t do_write (const void* buf, size_t size, int& errnum);

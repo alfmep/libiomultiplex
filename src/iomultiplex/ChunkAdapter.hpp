@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -163,9 +163,9 @@ namespace iomultiplex {
                                size_t num_chunks,
                                unsigned timeout=-1);
 
-        virtual void cancel (bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false);
+        virtual void cancel (bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast);
 
 
     private:

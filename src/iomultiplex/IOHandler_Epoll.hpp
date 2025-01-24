@@ -71,9 +71,9 @@ namespace iomultiplex {
         virtual int run (bool start_worker_thread=false);
         virtual void stop ();
         virtual void cancel (Connection& conn,
-                             bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false);
+                             bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast);
         virtual bool same_context () const;
         virtual void join ();
 

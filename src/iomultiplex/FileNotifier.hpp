@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -101,9 +101,9 @@ namespace iomultiplex {
          * @param cancel_tx This parameter is ignored.
          * @param fast This parameter is ignored.
          */
-        virtual void cancel (bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false);
+        virtual void cancel (bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast);
 
 
     private:

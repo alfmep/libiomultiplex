@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -60,7 +60,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     FdConnection::FdConnection (FdConnection&& conn)
     {
-        conn.cancel ();
+        conn.cancel (true, true, true);
         fd  = conn.fd.exchange (-1);
         ioh = conn.ioh;
         conn.ioh = nullptr;
@@ -83,8 +83,8 @@ namespace iomultiplex {
     FdConnection& FdConnection::operator= (FdConnection&& rhs)
     {
         if (this != &rhs) {
-            cancel ();
-            rhs.cancel ();
+            cancel (true, true, true);
+            rhs.cancel (true, true, true);
             fd  = rhs.fd.exchange (-1);
             ioh = rhs.ioh;
             rhs.ioh = nullptr;
@@ -134,7 +134,7 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void FdConnection::close ()
     {
-        cancel ();
+        cancel (true, true, false);
         int tmp_fd = fd.exchange (-1);
         if (tmp_fd != -1)
             ::close (tmp_fd);

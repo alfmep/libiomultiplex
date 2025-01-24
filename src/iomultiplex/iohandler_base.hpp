@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -186,9 +186,9 @@ namespace iomultiplex {
          *             without the associated callback being called.
          */
         virtual void cancel (Connection& conn,
-                             bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false) = 0;
+                             bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast) = 0;
 
         /**
          * Check if the I/O handler is running in the same

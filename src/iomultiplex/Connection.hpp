@@ -81,7 +81,7 @@ namespace iomultiplex {
         virtual iohandler_base& io_handler () = 0;
 
         /**
-         * Cancel all queued I/O operations for this connection.
+         * Cancel all queued input and/or output operations for this connection.
          * When an I/O operation is cancelled, the callback function
          * assiciated with that I/O operation is called and the
          * <code>result</code> and <code>errnum</code> members of
@@ -101,9 +101,49 @@ namespace iomultiplex {
          *             for this connection are removed immediately
          *             without the associated callback being called.
          */
-        virtual void cancel (bool cancel_rx=true,
-                             bool cancel_tx=true,
-                             bool fast=false) = 0;
+        virtual void cancel (bool cancel_rx,
+                             bool cancel_tx,
+                             bool fast) = 0;
+
+        /**
+         * Cancel all queued I/O operations for this connection.
+         * When an I/O operation is cancelled, the callback function
+         * assiciated with that I/O operation is called and the
+         * <code>result</code> and <code>errnum</code> members of
+         * the io_result_t parameter will be set to <code>-1</code>
+         * and <code>ECANCELED</code> respectively.
+         * This is done so allocated resources associated
+         * with the I/O operation can be released.
+         *
+         * @note Until all I/O queued operations are cancelled,
+         * trying to queue an I/O operation will fail with
+         * <code>errno</code> being set to <code>ECANCELED</code>.
+         *
+         * @param fast If <code>true</code>, all queued I/O operations
+         *             for this connection are removed immediately
+         *             without the associated callback being called.
+         */
+        void cancel (bool fast) {
+            cancel (true, true, fast);
+        }
+
+        /**
+         * Cancel all queued I/O operations for this connection.
+         * When an I/O operation is cancelled, the callback function
+         * assiciated with that I/O operation is called and the
+         * <code>result</code> and <code>errnum</code> members of
+         * the io_result_t parameter will be set to <code>-1</code>
+         * and <code>ECANCELED</code> respectively.
+         * This is done so allocated resources associated
+         * with the I/O operation can be released.
+         *
+         * @note Until all I/O queued operations are cancelled,
+         * trying to queue an I/O operation will fail with
+         * <code>errno</code> being set to <code>ECANCELED</code>.
+         */
+        void cancel () {
+            cancel (true, true, false);
+        }
 
         /**
          * Close the connection.
