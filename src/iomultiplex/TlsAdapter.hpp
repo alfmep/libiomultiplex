@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -42,8 +42,9 @@ namespace iomultiplex {
         /**
          * Callback that is called when a TLS handshake is finished (successful or not).
          * @param tls The TlsAdapter instance that attempted to establish a secure connection.
+         * @param errnum The value of <code>errno</code>.
          */
-        using tls_handshake_cb_t = std::function<void (TlsAdapter& tls)>;
+        using tls_handshake_cb_t = std::function<void (TlsAdapter& tls, int errnum)>;
 
 
         /**
@@ -432,6 +433,12 @@ namespace iomultiplex {
 
 
         /**
+         *
+         */
+        int shutdown (tls_handshake_cb_t callback, unsigned timeout=-1);
+
+
+        /**
          * Read encrypted data from the slave connection.
          *
          * @param buf A pointer to the memory area where data should be stored.
@@ -477,8 +484,12 @@ namespace iomultiplex {
                                    tls_handshake_cb_t cb,
                                    unsigned timeout,
                                    int errnum);
+        void handle_tls_shutdown (tls_handshake_cb_t cb,
+                                  unsigned timeout,
+                                  int errnum);
         void clear_error ();
         void update_error (const char* msg=nullptr);
+        void clear_resources ();
 
         SSL_CTX* tls_ctx; // OpenSSL context object
         SSL* tls;         // OpenSSL SSL(TLS) object

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -341,17 +341,26 @@ static void start_rx (appdata_t& app,
 static void on_tls_handshake (appdata_t& app,
                               shared_ptr<iom::Connection> conn,
                               string peer,
-                              int errnum,
-                              const std::string& errstr)
+                              int errnum)
 {
-    if (errnum) {
-        if (app.verbose && errnum!=ECANCELED)
-            cout << "TLS handshaked from " << peer << " failed: " << errstr << " (" << errnum << ")" << endl;
+    iom::TlsAdapter& tls = dynamic_cast<iom::TlsAdapter&> (*conn);
+    if (errnum || tls.last_error()) {
+        if (app.verbose) {
+            if (errnum) {
+                if (errnum!=ECANCELED)
+                    cout << "TLS handshaked from " << peer << " failed: "
+                         << strerror(errnum) << " (" << errnum << ")" << endl;
+            }else{
+                cout << "TLS handshaked from " << peer << " failed: "
+                     << tls.last_error_msg() << " (" << tls.last_error() << ")" << endl;
+            }
+        }
         conn->close ();
         conn.reset ();
         return;
     }
-    cout << "Successful TLS handshaked with " << peer << endl;
+    if (app.verbose)
+        cout << "Successful TLS handshaked with " << peer << endl;
 
     // Start reading data from the client
     start_rx (app, conn, peer);
@@ -393,12 +402,11 @@ static void on_accept (appdata_t& app,
 
         dynamic_cast<iom::TlsAdapter*>(tlsa.get())->start_server_tls (
                 tls_cfg,
-                [&app, tlsa, peer](iom::TlsAdapter& tls){
+                [&app, tlsa, peer](iom::TlsAdapter& tls, int errnum){
                     on_tls_handshake (app,
                                       tlsa,
                                       peer,
-                                      tls.last_error(),
-                                      tls.last_error_msg());
+                                      errnum);
                 },
                 5000); // 5 sec timeout
     }else{
@@ -425,12 +433,20 @@ static void on_dtls_handshake (appdata_t& app,
                                shared_ptr<iom::Connection> conn,
                                shared_ptr<char[]> buf,
                                string peer,
-                               int errnum,
-                               const std::string& errstr)
+                               int errnum)
 {
-    if (errnum) {
-        if (app.verbose && errnum!=ECANCELED)
-            cout << "DTLS handshaked from " << peer << " failed: " << errstr << " (" << errnum << ")" << endl;
+    iom::TlsAdapter& tls = dynamic_cast<iom::TlsAdapter&> (*conn);
+    if (errnum || tls.last_error()) {
+        if (app.verbose) {
+            if (errnum) {
+                if (errnum!=ECANCELED)
+                    cout << "DTLS handshaked from " << peer << " failed: "
+                         << strerror(errnum) << " (" << errnum << ")" << endl;
+            }else{
+                cout << "DTLS handshaked from " << peer << " failed: "
+                     << tls.last_error_msg() << " (" << tls.last_error() << ")" << endl;
+            }
+        }
         conn->close ();
         conn.reset ();
         return;
@@ -483,13 +499,12 @@ static void on_datagram_rx (appdata_t& app,
                 dtls_cfg,
                 ior.buf,
                 (size_t)(ior.result>0 ? ior.result : 0),
-                [&app, dtlsa, buf, peer](iom::TlsAdapter& tls){
+                [&app, dtlsa, buf, peer](iom::TlsAdapter& tls, int errnum){
                     on_dtls_handshake (app,
                                        dtlsa,
                                        buf,
                                        peer,
-                                       tls.last_error(),
-                                       tls.last_error_msg());
+                                       errnum);
                 },
                 5000); // 5 sec timeout
         if (result) {

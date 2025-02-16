@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -47,9 +47,7 @@ iom::BufferPool buffer_pool (2048, 4, 4);
 static void on_accept (iom::SocketConnection& srv_sock,
                        std::shared_ptr<iom::SocketConnection> client_sock,
                        int errnum);
-static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls,
-                              int errnum,
-                              const std::string errstr);
+static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls, int errnum);
 static void on_rx (shared_ptr<iom::TlsAdapter>,
                    iom::io_result_t& ior);
 
@@ -143,11 +141,9 @@ static void on_accept (iom::SocketConnection& srv_sock,
     tls_cfg.privkey_file = tls_key_file;
 
     if (tls->start_server_tls(tls_cfg,
-                              [tls](iom::TlsAdapter& conn){
+                              [tls](iom::TlsAdapter& conn, int errnum){
                                   // We have captured 'tls' so it doesn't go out of scope
-                                  on_tls_handshake (tls,
-                                                    tls->last_error(),
-                                                    tls->last_error_msg());
+                                  on_tls_handshake (tls, errnum);
                               },
                               default_timeout))
     {
@@ -164,15 +160,18 @@ static void on_accept (iom::SocketConnection& srv_sock,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls,
-                              int errnum,
-                              const std::string errstr)
+static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls, int errnum)
 {
-    if (errnum) {
+    if (errnum || tls->last_error()) {
         auto& sock = dynamic_cast<iom::SocketConnection&> (tls->connection());
-        if (errnum != ECANCELED)
-            cerr << "TLS handshake error: " << errstr << " (" << errnum << ") with "
+        if (errnum) {
+            if (errnum != ECANCELED)
+                cerr << "TLS handshake error: " << strerror(errnum) << " (" << errnum << ") with "
+                     << sock.peer().to_string() << endl;
+        }else{
+            cerr << "TLS handshake error: " << tls->last_error_msg() << " (" << tls->last_error() << ") with "
                  << sock.peer().to_string() << endl;
+        }
         tls->close ();
         return;
     }

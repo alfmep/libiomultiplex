@@ -26,15 +26,16 @@
 
 //#define TRACE_DEBUG
 
+#define THIS_FILE "TlsAdapter.cpp"
 #ifdef TRACE_DEBUG
-#include <sys/types.h>
-#define TRACE(format, ...) do{ \
-    auto save_errno=errno; \
-    Log::debug("[%u] %s:%s:%d: " format, gettid(), __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__); \
-    errno=save_errno; \
-}while(false)
+#  include <sys/types.h>
+#  define TRACE(format, ...) do{ \
+      auto save_errno=errno; \
+      Log::debug("[%u] %s:%s:%d: " format, gettid(), THIS_FILE, __FUNCTION__, __LINE__, ## __VA_ARGS__); \
+      errno=save_errno; \
+   }while(false)
 #else
-#define TRACE(format, ...)
+#  define TRACE(format, ...)
 #endif
 
 
@@ -83,31 +84,11 @@ namespace iomultiplex {
     //--------------------------------------------------------------------------
     void TlsAdapter::close ()
     {
-        if (tls_active) {
-            TRACE ("Shutdown TLS");
+        if (is_tls_active()) {
             cancel (true, true, false);
             SSL_shutdown (tls);
+            clear_resources ();
         }
-        // Release TLS resources
-        if (mem_bio) {
-            if (tls && SSL_get_rbio(tls) == mem_bio)
-                SSL_set0_rbio (tls, fd_bio);
-            else
-                BIO_free (mem_bio);
-            mem_bio_buf.reset ();
-            mem_bio = nullptr;
-            fd_bio = nullptr;
-        }
-        if (tls)
-            SSL_free (tls);
-        if (tls_ctx)
-            SSL_CTX_free (tls_ctx);
-        tls         = nullptr;
-        tls_ctx     = nullptr;
-        tls_active  = false;
-        tls_started = false;
-
-        clear_error ();
 
         Adapter::close ();
     }
@@ -349,7 +330,7 @@ namespace iomultiplex {
 
         clear_error ();
 
-        TRACE ("Starting TLS %s handshake on file handle %d",
+        TRACE ("Starting TLS %s handshake on fd %d",
                (is_server ? "server" : "client"), handle());
 
         // Configure TLS context
@@ -358,7 +339,7 @@ namespace iomultiplex {
             tls_ctx     = nullptr;
             tls_active  = false;
             tls_started = false;
-            TRACE ("File handle %d failed to configure TLS", handle());
+            TRACE ("Failed to configure TLS on fd %d", handle());
             errno = EINVAL;
             return -1;
         }
@@ -366,7 +347,7 @@ namespace iomultiplex {
         // Create and initialize an SSL structure
         tls = SSL_new (tls_ctx);
         if (!tls || SSL_set_fd(tls, handle())==0) {
-            TRACE ("File Handle %d failed to initialize an SSL structure", handle());
+            TRACE ("Failed to initialize an SSL structure on fd %d", handle());
             if (tls)
                 SSL_free (tls);
             SSL_CTX_free (tls_ctx);
@@ -389,7 +370,7 @@ namespace iomultiplex {
         if (is_server) {
             if (buf && buf_len) {
                 // We have an initial RX buffer and is starting a server handshake
-                TRACE ("Start TLS server handshake on file handle %d with pre-read buffer, size: %lu",
+                TRACE ("Start TLS server handshake on fd %d with pre-read buffer, size: %lu",
                        handle(), buf_len);
                 result = initiate_tls_server_handshake (buf, buf_len, callback, timeout);
             }else{
@@ -405,7 +386,7 @@ namespace iomultiplex {
         if (result) {
 #ifdef TRACE_DEBUG
             auto errnum = errno;
-            TRACE ("TLS handshake failed for file handle %d: %s", handle(), strerror(errnum));
+            TRACE ("TLS handshake failed for fd %d: %s", handle(), strerror(errnum));
             errno = errnum;
 #endif
             if (mem_bio) {
@@ -445,26 +426,29 @@ namespace iomultiplex {
             return -1;
         }
         bool io_done = false;
+        long tls_error = 0;
         int errnum = 0;
         int retval = -1;
         // Initiate TLS handshake
-        if (start_tls(tls_config,
-                      is_server,
-                      use_dtls,
-                      buf,
-                      buf_len,
-                      [this, &errnum, &io_done](Connection& conn){
-                          std::unique_lock<std::mutex> lock (sync_mutex);
-                          io_done = true;
-                          errnum = last_error ();
-                          sync_cond.notify_one ();
-                      },
-                      timeout) == 0)
-        {
+        int start_result;
+        start_result = start_tls (tls_config,
+                                  is_server,
+                                  use_dtls,
+                                  buf,
+                                  buf_len,
+                                  [this, &tls_error, &errnum, &io_done](TlsAdapter& ta, int e){
+                                      std::unique_lock<std::mutex> lock (sync_mutex);
+                                      io_done = true;
+                                      tls_error = last_error ();
+                                      errnum = e;
+                                      sync_cond.notify_one ();
+                                  },
+                                  timeout);
+        if (start_result == 0) {
             // Wait for TLS handshake to finish, fail, or timeout
             std::unique_lock<std::mutex> lock (sync_mutex);
             sync_cond.wait (lock, [&io_done]{return io_done;});
-            if (errnum) {
+            if (tls_error || errnum) {
                 cancel (true, true, false);
                 if (tls)
                     SSL_free (tls);
@@ -474,6 +458,8 @@ namespace iomultiplex {
                 tls_ctx     = nullptr;
                 tls_active  = false;
                 tls_started = false;
+                if (errnum == 0)
+                    errnum = EIO;
             }else{
                 retval = 0;
             }
@@ -530,13 +516,15 @@ namespace iomultiplex {
             mem_bio = nullptr;
             memset (mem_bio_buf.get(), 0xff, buf_len);
             mem_bio_buf.reset ();
-            TRACE ("TLS handshake success for file handle %d after only initial RX buffer data", handle());
+            TRACE ("TLS handshake success for fd %d after only initial RX buffer data", handle());
             tls_active = true;
             if (cb) {
-                retval = wait_for_tx ([this, cb](io_result_t& ior)->bool {
-                                          cb (*this);
-                                          return false;
-                                      }, timeout);
+                retval = wait_for_tx (
+                        [this, cb](io_result_t& ior)->bool{
+                            cb (*this, ior.errnum);
+                            return false;
+                        },
+                        timeout);
             }
             break;
 
@@ -620,7 +608,7 @@ namespace iomultiplex {
 
             case SSL_ERROR_SYSCALL:
                 if (!errnum) {
-                    ERR_put_error (ERR_LIB_USER, SYS_F_CONNECT, ERR_R_SYS_LIB, __FILE__, __LINE__);
+                    ERR_put_error (ERR_LIB_USER, SYS_F_CONNECT, ERR_R_SYS_LIB, THIS_FILE, __LINE__);
                     errnum = EIO;
                 }
                 update_error (strerror(errnum));
@@ -649,16 +637,225 @@ namespace iomultiplex {
             tls_ctx     = nullptr;
             tls_active  = false;
             tls_started = false;
-            TRACE ("TLS handshake failed for file handle %d: %s", handle(), last_err_msg.c_str());
+            TRACE ("TLS handshake failed for fd %d: %s, errno: %d - %s",
+                   handle(), last_err_msg.c_str(), errnum, strerror(errnum));
         }else{
-            TRACE ("TLS handshake success for file handle %d", handle());
+            TRACE ("TLS handshake success for fd %d", handle());
             tls_active = true;
         }
 
         if (cb)
-            cb (*this);
+            cb (*this, errnum);
 
         return false;
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    void TlsAdapter::clear_resources ()
+    {
+        // Release TLS resources
+        if (mem_bio) {
+            if (tls && SSL_get_rbio(tls) == mem_bio)
+                SSL_set0_rbio (tls, fd_bio);
+            else
+                BIO_free (mem_bio);
+            mem_bio_buf.reset ();
+            mem_bio = nullptr;
+            fd_bio = nullptr;
+        }
+        if (tls)
+            SSL_free (tls);
+        if (tls_ctx)
+            SSL_CTX_free (tls_ctx);
+        tls         = nullptr;
+        tls_ctx     = nullptr;
+        tls_active  = false;
+        tls_started = false;
+
+        clear_error ();
+    }
+
+
+    //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    int TlsAdapter::shutdown (tls_handshake_cb_t callback, unsigned timeout)
+    {
+        // Sanity check
+        if (handle() < 0) {
+            errno = EBADF;
+            return -1;
+        }
+        if (!is_tls_active()) {
+            errno = 0;
+            return -1;
+        }
+
+        TRACE ("Perform (D)TLS shutdown on fd %d", handle());
+        clear_error ();
+        errno = 0;
+        auto result = SSL_shutdown (tls);
+
+        if (result == 1) {
+            // Shutdown successfully completed !
+            if (io_handler().same_context()) {
+                TRACE ("(D)TLS shutdown complete on fd %d", handle());
+                clear_resources ();
+                if (callback)
+                    callback (*this, 0);
+                return 0;
+            }else{
+                return wait_for_rx ([this, callback](io_result_t& ior)->bool
+                    {
+                        TRACE ("(D)TLS shutdown complete on fd %d", handle());
+                        clear_resources ();
+                        if (callback)
+                            callback (*this, 0);
+                        return false;
+                    }, 0);
+            }
+        }
+        if (result == 0) {
+            // Wait for the peer's close_notify alert.
+            TRACE ("Waiting for peer (D)TLS shutdown on fd %d", handle());
+            return wait_for_rx (
+                    [this, callback](io_result_t& ior)->bool{
+                        handle_tls_shutdown (callback, 0, ior.errnum);
+                        return false;
+                    },
+                    timeout);
+        }
+
+        int retval = 0;
+        auto tls_error = SSL_get_error (tls, result);
+        switch (tls_error) {
+        // case SSL_ERROR_NONE:
+        //     break;
+
+        case SSL_ERROR_WANT_READ:
+            TRACE ("RX needed for (D)TLS shutdown on fd %d", handle());
+            retval = wait_for_rx (
+                    [this, callback, timeout](io_result_t& ior)->bool{
+                        handle_tls_shutdown (callback, timeout, ior.errnum);
+                        return false;
+                    },
+                    timeout);
+            break;
+
+        case SSL_ERROR_WANT_WRITE:
+            TRACE ("TX needed for (D)TLS shutdown on fd %d", handle());
+            retval = wait_for_tx (
+                    [this, callback, timeout](io_result_t& ior)->bool{
+                        handle_tls_shutdown (callback, timeout, ior.errnum);
+                        return false;
+                    },
+                    timeout);
+            break;
+
+        case SSL_ERROR_SYSCALL:
+            update_error ();
+            retval = -1;
+            TRACE ("SSL_ERROR_SYSCALL: %s", last_err_msg.c_str());
+            break;
+
+        case SSL_ERROR_SSL:
+        default:
+            update_error ();
+            retval = -1;
+            TRACE ("SSL_ERROR_SSL: %s", last_err_msg.c_str());
+            break;
+        }
+
+        return retval;
+    }
+
+
+    //--------------------------------------------------------------------------
+    // I/O handler context
+    //--------------------------------------------------------------------------
+    void TlsAdapter::handle_tls_shutdown (tls_handshake_cb_t callback,
+                                          unsigned timeout,
+                                          int errnum)
+    {
+        if (errnum) {
+            TRACE ("(D)TLS shutdown error on fd %d: %s", handle(), strerror(errnum));
+            clear_resources ();
+            if (callback)
+                callback (*this, errnum);
+            return;
+        }
+
+        clear_error ();
+        errno = 0;
+        int result = SSL_shutdown (tls);
+
+        if (result == 1) {
+            // Shutdown successfully completed !
+            TRACE ("(D)TLS shutdown complete on fd %d", handle());
+            clear_resources ();
+            if (callback)
+                callback (*this, 0);
+            return;
+        }
+        if (result == 0) {
+            // Wait for the peer's close_notify alert.
+            TRACE ("Waiting for peer (D)TLS shutdown on fd %d", handle());
+            if (wait_for_rx (
+                        [this, callback](io_result_t& ior)->bool{
+                            clear_resources ();
+                            if (callback)
+                                callback (*this, ior.errnum);
+                            return false;
+                        }, timeout))
+            {
+                if (callback)
+                    callback (*this, errno);
+            }
+            return;
+        }
+
+        auto tls_error = SSL_get_error (tls, result);
+        switch (tls_error) {
+        case SSL_ERROR_WANT_READ:
+            TRACE ("RX needed for (D)TLS shutdown on fd %d", handle());
+            result = wait_for_rx (
+                    [this, callback, timeout](io_result_t& ior)->bool{
+                        handle_tls_shutdown (callback, timeout, ior.errnum);
+                        return false;
+                    },
+                    timeout);
+            break;
+
+        case SSL_ERROR_WANT_WRITE:
+            TRACE ("TX needed for (D)TLS shutdown on fd %d", handle());
+            result = wait_for_tx (
+                    [this, callback, timeout](io_result_t& ior)->bool{
+                        handle_tls_shutdown (callback, timeout, ior.errnum);
+                        return false;
+                    },
+                    timeout);
+            break;
+
+        case SSL_ERROR_SYSCALL:
+            update_error ();
+            result = -1;
+            errno = EIO;
+            TRACE ("SSL_ERROR_SYSCALL: %s", last_err_msg.c_str());
+            break;
+
+        case SSL_ERROR_SSL:
+        default:
+            update_error ();
+            result = -1;
+            TRACE ("SSL_ERROR_SSL: %s", last_err_msg.c_str());
+            break;
+        }
+
+        if (result) {
+            if (callback)
+                callback (*this, errno);
+        }
     }
 
 

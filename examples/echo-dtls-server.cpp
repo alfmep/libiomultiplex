@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -46,9 +46,7 @@ iom::BufferPool buffer_pool (2048, 4, 4);
 static void on_new_client (iom::SocketConnection& srv_sock,
                            iom::io_result_t& ior,
                            const iom::SockAddr& peer_addr);
-static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls,
-                               int errnum,
-                               const std::string errstr);
+static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls, int errnum);
 static void on_rx (shared_ptr<iom::TlsAdapter> dtls,
                    iom::io_result_t& ior);
 
@@ -160,11 +158,9 @@ static void on_new_client (iom::SocketConnection& srv_sock,
     tls_cfg.privkey_file = tls_key_file;
 
     if (dtls->start_server_dtls(tls_cfg,
-                                [dtls](iom::TlsAdapter& conn){
+                                [dtls](iom::TlsAdapter& conn, int errnum){
                                     // We have captured 'dtls' so it doesn't go out of scope
-                                    on_dtls_handshake (dtls,
-                                                       dtls->last_error(),
-                                                       dtls->last_error_msg());
+                                    on_dtls_handshake (dtls, errnum);
                                 },
                                 default_timeout))
     {
@@ -189,16 +185,18 @@ static void on_new_client (iom::SocketConnection& srv_sock,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls,
-                               int errnum,
-                               const std::string errstr)
+static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls, int errnum)
 {
-    if (errnum) {
+    if (errnum || dtls->last_error()) {
         auto& sock = dynamic_cast<iom::SocketConnection&> (dtls->connection());
-        if (errnum != ECANCELED)
-            cerr << "DTLS handshake error: " << errstr << " (" << errnum << ") with "
+        if (errnum) {
+            if (errnum != ECANCELED)
+                cerr << "DTLS handshake error: " << strerror(errnum) << " (" << errnum << ") with "
+                     << sock.peer().to_string() << endl;
+        }else{
+            cerr << "DTLS handshake error: " << dtls->last_error_msg() << " (" << dtls->last_error() << ") with "
                  << sock.peer().to_string() << endl;
-        dtls->close ();
+        }
         return;
     }
 
