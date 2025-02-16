@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -34,13 +34,13 @@ public:
                bool allow_overwrite,
                size_t max_size,
                const std::string& filename,
-               const iomultiplex::IpAddr& addr,
+               const iomultiplex::ip_addr& addr,
                std::function<void (tftp_session_t& sess)> on_session_done);
     void stop ();
 
 
 private:
-    int open_file (const iomultiplex::IpAddr& addr);
+    int open_file (const iomultiplex::ip_addr& addr);
     void close_file ();
     void send_error_and_end_session (uint16_t err_code,
                                      const std::string& err_msg);
@@ -58,7 +58,7 @@ private:
     void handle_new_block (iomultiplex::io_result_t& ior);
     void handle_block_error (iomultiplex::io_result_t& ior, uint16_t expected_block);
 
-    iomultiplex::SocketConnection sock;
+    iomultiplex::socket_connection sock;
     std::function<void (tftp_session_t& sess)> session_done_cb;
     std::string filename;
     std::string sess_id;

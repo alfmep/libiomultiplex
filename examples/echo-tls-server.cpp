@@ -41,14 +41,14 @@ static constexpr const char* tls_key_file  = "tls-snakeoil.privkey";
 //
 // A memory buffer pool used by client connections
 //
-iom::BufferPool buffer_pool (2048, 4, 4);
+iom::buffer_pool buffer_pool (2048, 4, 4);
 
 
-static void on_accept (iom::SocketConnection& srv_sock,
-                       std::shared_ptr<iom::SocketConnection> client_sock,
+static void on_accept (iom::socket_connection& srv_sock,
+                       std::shared_ptr<iom::socket_connection> client_sock,
                        int errnum);
-static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls, int errnum);
-static void on_rx (shared_ptr<iom::TlsAdapter>,
+static void on_tls_handshake (shared_ptr<iom::tls_adapter> tls, int errnum);
+static void on_rx (shared_ptr<iom::tls_adapter>,
                    iom::io_result_t& ior);
 
 
@@ -62,11 +62,11 @@ int main (int argc, char* argv[])
 
     // Create the server socket
     //
-    iom::SocketConnection srv_sock (ioh);
+    iom::socket_connection srv_sock (ioh);
 
     // Local IP address we're going to listen on
     //
-    iom::IpAddr addr (local_address, local_port);
+    iom::ip_addr addr (local_address, local_port);
 
     // Open the server socket
     //
@@ -116,8 +116,8 @@ int main (int argc, char* argv[])
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_accept (iom::SocketConnection& srv_sock,
-                       std::shared_ptr<iom::SocketConnection> client_sock,
+static void on_accept (iom::socket_connection& srv_sock,
+                       std::shared_ptr<iom::socket_connection> client_sock,
                        int errnum)
 {
     if (errnum) {
@@ -132,16 +132,16 @@ static void on_accept (iom::SocketConnection& srv_sock,
 
     // Create a TLS adapter object
     //
-    auto tls = make_shared<iom::TlsAdapter> (client_sock);
+    auto tls = make_shared<iom::tls_adapter> (client_sock);
 
     // Queue a TLS handlshake request
     //
-    iom::TlsConfig tls_cfg (false);
+    iom::tls_config tls_cfg (false);
     tls_cfg.cert_file = tls_cert_file;
     tls_cfg.privkey_file = tls_key_file;
 
     if (tls->start_server_tls(tls_cfg,
-                              [tls](iom::TlsAdapter& conn, int errnum){
+                              [tls](iom::tls_adapter& conn, int errnum){
                                   // We have captured 'tls' so it doesn't go out of scope
                                   on_tls_handshake (tls, errnum);
                               },
@@ -160,10 +160,10 @@ static void on_accept (iom::SocketConnection& srv_sock,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls, int errnum)
+static void on_tls_handshake (shared_ptr<iom::tls_adapter> tls, int errnum)
 {
     if (errnum || tls->last_error()) {
-        auto& sock = dynamic_cast<iom::SocketConnection&> (tls->connection());
+        auto& sock = dynamic_cast<iom::socket_connection&> (tls->conn());
         if (errnum) {
             if (errnum != ECANCELED)
                 cerr << "TLS handshake error: " << strerror(errnum) << " (" << errnum << ") with "
@@ -198,13 +198,13 @@ static void on_tls_handshake (shared_ptr<iom::TlsAdapter> tls, int errnum)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_rx (shared_ptr<iom::TlsAdapter> tls,
+static void on_rx (shared_ptr<iom::tls_adapter> tls,
                    iom::io_result_t& ior)
 {
     // Check for error or closed connection
     //
     if (ior.result <= 0) {
-        auto& sock = dynamic_cast<iom::SocketConnection&> (tls->connection());
+        auto& sock = dynamic_cast<iom::socket_connection&> (tls->conn());
         switch (ior.errnum) {
         case 0:
             cerr << "Connection closed by peer " << sock.peer().to_string() << endl;

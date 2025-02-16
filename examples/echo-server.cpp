@@ -50,9 +50,9 @@ static std::mutex server_done;
 //------------------------------------------------------------------------------
 struct appdata_t {
     iom::default_iohandler ioh;
-    iom::SocketConnection srv_sock;
-    iom::IpAddr ip_addr;
-    iom::UxAddr ux_addr;
+    iom::socket_connection srv_sock;
+    iom::ip_addr ip_addr;
+    iom::ux_addr ux_addr;
     string ca_file;
     string cert_file;
     string privkey_file;
@@ -233,7 +233,7 @@ static void init_signal_handler ()
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_rx (appdata_t& app,
-                   shared_ptr<iom::Connection> conn,
+                   shared_ptr<iom::connection> conn,
                    shared_ptr<char[]> buf,
                    string peer,
                    iom::io_result_t& ior)
@@ -322,7 +322,7 @@ static void on_udp_rx (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void start_rx (appdata_t& app,
-                             shared_ptr<iom::Connection> conn,
+                             shared_ptr<iom::connection> conn,
                              string peer)
 {
     shared_ptr<char[]> buf (new char[buf_size]);
@@ -339,11 +339,11 @@ static void start_rx (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_tls_handshake (appdata_t& app,
-                              shared_ptr<iom::Connection> conn,
+                              shared_ptr<iom::connection> conn,
                               string peer,
                               int errnum)
 {
-    iom::TlsAdapter& tls = dynamic_cast<iom::TlsAdapter&> (*conn);
+    iom::tls_adapter& tls = dynamic_cast<iom::tls_adapter&> (*conn);
     if (errnum || tls.last_error()) {
         if (app.verbose) {
             if (errnum) {
@@ -370,7 +370,7 @@ static void on_tls_handshake (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_accept (appdata_t& app,
-                       shared_ptr<iom::SocketConnection> cs,
+                       shared_ptr<iom::socket_connection> cs,
                        int errnum)
 {
     if (errnum) {
@@ -397,12 +397,12 @@ static void on_accept (appdata_t& app,
         // Perform TLS handshake
         //
         string peer = cs->peer().to_string ();
-        iom::TlsConfig tls_cfg (false, app.ca_file, app.cert_file, app.privkey_file);
-        shared_ptr<iom::Connection> tlsa (new iom::TlsAdapter(cs));
+        iom::tls_config tls_cfg (false, app.ca_file, app.cert_file, app.privkey_file);
+        shared_ptr<iom::connection> tlsa (new iom::tls_adapter(cs));
 
-        dynamic_cast<iom::TlsAdapter*>(tlsa.get())->start_server_tls (
+        dynamic_cast<iom::tls_adapter*>(tlsa.get())->start_server_tls (
                 tls_cfg,
-                [&app, tlsa, peer](iom::TlsAdapter& tls, int errnum){
+                [&app, tlsa, peer](iom::tls_adapter& tls, int errnum){
                     on_tls_handshake (app,
                                       tlsa,
                                       peer,
@@ -418,8 +418,8 @@ static void on_accept (appdata_t& app,
 
     // Continue accepting new clients
     //
-    app.srv_sock.accept ([&app](iom::SocketConnection& ss,
-                                shared_ptr<iom::SocketConnection> cs,
+    app.srv_sock.accept ([&app](iom::socket_connection& ss,
+                                shared_ptr<iom::socket_connection> cs,
                                 int errnum)
                          {
                              on_accept (app, cs, errnum);
@@ -430,12 +430,12 @@ static void on_accept (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_dtls_handshake (appdata_t& app,
-                               shared_ptr<iom::Connection> conn,
+                               shared_ptr<iom::connection> conn,
                                shared_ptr<char[]> buf,
                                string peer,
                                int errnum)
 {
-    iom::TlsAdapter& tls = dynamic_cast<iom::TlsAdapter&> (*conn);
+    iom::tls_adapter& tls = dynamic_cast<iom::tls_adapter&> (*conn);
     if (errnum || tls.last_error()) {
         if (app.verbose) {
             if (errnum) {
@@ -469,7 +469,7 @@ static void on_dtls_handshake (appdata_t& app,
 //------------------------------------------------------------------------------
 static void on_datagram_rx (appdata_t& app,
                             shared_ptr<char[]> buf,
-                            const iom::SockAddr& peer_addr,
+                            const iom::sock_addr& peer_addr,
                             iom::io_result_t& ior)
 {
     if (ior.errnum == ECANCELED)
@@ -489,17 +489,17 @@ static void on_datagram_rx (appdata_t& app,
         // Perform TLS handshake
         //
         string peer = peer_addr.to_string ();
-        iom::TlsConfig dtls_cfg (false, app.ca_file, app.cert_file, app.privkey_file);
-        shared_ptr<iom::Connection> dtlsa (new iom::TlsAdapter(app.srv_sock, false));
+        iom::tls_config dtls_cfg (false, app.ca_file, app.cert_file, app.privkey_file);
+        shared_ptr<iom::connection> dtlsa (new iom::tls_adapter(app.srv_sock, false));
 
         if (app.verbose)
             cout << "Start DTLS handshake with " << peer << endl;
 
-        auto result = dynamic_cast<iom::TlsAdapter*>(dtlsa.get())->start_server_dtls (
+        auto result = dynamic_cast<iom::tls_adapter*>(dtlsa.get())->start_server_dtls (
                 dtls_cfg,
                 ior.buf,
                 (size_t)(ior.result>0 ? ior.result : 0),
-                [&app, dtlsa, buf, peer](iom::TlsAdapter& tls, int errnum){
+                [&app, dtlsa, buf, peer](iom::tls_adapter& tls, int errnum){
                     on_dtls_handshake (app,
                                        dtlsa,
                                        buf,
@@ -532,7 +532,7 @@ static void on_datagram_rx (appdata_t& app,
         // Continue reading
         app.srv_sock.recvfrom (ior.buf,
                                ior.size,
-                               [&app, buf](iom::io_result_t& ior, const iom::SockAddr& peer_addr)->bool{
+                               [&app, buf](iom::io_result_t& ior, const iom::sock_addr& peer_addr)->bool{
                                    on_datagram_rx (app, buf, peer_addr, ior);
                                    return false;
                                });
@@ -553,8 +553,8 @@ static void logger (unsigned prio, const char* msg)
 //------------------------------------------------------------------------------
 int main (int argc, char* argv[])
 {
-    iom::Log::set_callback (logger);
-    iom::Log::priority (LOG_DEBUG);
+    iom::log::set_callback (logger);
+    iom::log::priority (LOG_DEBUG);
 
     appdata_t app;
 
@@ -564,9 +564,9 @@ int main (int argc, char* argv[])
 
     // Select IP address or Unix Domain Socket address
     //
-    iom::SockAddr& srv_addr = app.ux_addr.path().empty() ?
-        dynamic_cast<iom::SockAddr&>(app.ip_addr) :
-        dynamic_cast<iom::SockAddr&>(app.ux_addr);
+    iom::sock_addr& srv_addr = app.ux_addr.path().empty() ?
+        dynamic_cast<iom::sock_addr&>(app.ip_addr) :
+        dynamic_cast<iom::sock_addr&>(app.ux_addr);
 
     if (app.verbose) {
         if (srv_addr.family()==AF_UNIX) {
@@ -617,7 +617,7 @@ int main (int argc, char* argv[])
         shared_ptr<char[]> buf (new char[buf_size]);
         app.srv_sock.recvfrom (buf.get(),
                                buf_size,
-                               [&app, buf](iom::SocketConnection& ss, iom::io_result_t& ior, const iom::SockAddr& peer_addr){
+                               [&app, buf](iom::socket_connection& ss, iom::io_result_t& ior, const iom::sock_addr& peer_addr){
                                    on_datagram_rx (app, buf, peer_addr, ior);
                                });
     }else{
@@ -630,8 +630,8 @@ int main (int argc, char* argv[])
 
         // Start accepting clients
         //
-        app.srv_sock.accept ([&app](iom::SocketConnection& ss,
-                                    shared_ptr<iom::SocketConnection> cs,
+        app.srv_sock.accept ([&app](iom::socket_connection& ss,
+                                    shared_ptr<iom::socket_connection> cs,
                                     int errnum)
                              {
                                  on_accept (app, cs, errnum);

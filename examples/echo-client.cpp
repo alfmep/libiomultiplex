@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -42,9 +42,9 @@ static constexpr const uint16_t default_port = 42000;
 //------------------------------------------------------------------------------
 struct appdata_t {
     iom::default_iohandler ioh;
-    iom::SocketConnection sock;
-    iom::IpAddr ip_addr;
-    iom::UxAddr ux_addr;
+    iom::socket_connection sock;
+    iom::ip_addr ip_addr;
+    iom::ux_addr ux_addr;
     string ca_file;
     string cert_file;
     string privkey_file;
@@ -180,8 +180,8 @@ static void logger (unsigned prio, const char* msg)
 //------------------------------------------------------------------------------
 int main (int argc, char* argv[])
 {
-    iom::Log::set_callback (logger);
-    iom::Log::priority (LOG_DEBUG);
+    iom::log::set_callback (logger);
+    iom::log::priority (LOG_DEBUG);
 
     // Parse command line arguments
     //
@@ -194,9 +194,9 @@ int main (int argc, char* argv[])
 
     // Select IP address or Unix Domain Socket address
     //
-    iom::SockAddr& srv_addr = app.ux_addr.path().empty() ?
-        dynamic_cast<iom::SockAddr&>(app.ip_addr) :
-        dynamic_cast<iom::SockAddr&>(app.ux_addr);
+    iom::sock_addr& srv_addr = app.ux_addr.path().empty() ?
+        dynamic_cast<iom::sock_addr&>(app.ip_addr) :
+        dynamic_cast<iom::sock_addr&>(app.ux_addr);
 
     // Open the client socket
     //
@@ -211,18 +211,18 @@ int main (int argc, char* argv[])
     }
     cout << "Remote address: " << app.sock.peer().to_string() << endl;
 
-    iom::TlsAdapter tlsa (app.sock);
+    iom::tls_adapter tlsa (app.sock);
     if (app.tls) {
         cout << "Start TLS handshake" << endl;
-        if (tlsa.start_tls(iom::TlsConfig(false), false, app.udp)) {
+        if (tlsa.start_tls(iom::tls_config(false), false, app.udp)) {
             perror ("sock.start_tls");
             return 1;
         }
     }
 
-    iom::Connection& conn = app.tls ?
-        dynamic_cast<iom::Connection&>(tlsa) :
-        dynamic_cast<iom::Connection&>(app.sock);
+    iom::connection& conn = app.tls ?
+        dynamic_cast<iom::connection&>(tlsa) :
+        dynamic_cast<iom::connection&>(app.sock);
 
     // Send some data
     //

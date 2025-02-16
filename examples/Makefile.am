@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021-2024 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021-2025 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -81,16 +81,16 @@ beacon_client_SOURCES = beacon-client.cpp
 
 noinst_bin_PROGRAMS  += adapter-test
 adapter_test_SOURCES  = adapter-test.cpp
-adapter_test_SOURCES += ObfuscateAdapter.cpp
-adapter_test_SOURCES += ObfuscateAdapter.hpp
-adapter_test_SOURCES += ShuffleAdapter.cpp
-adapter_test_SOURCES += ShuffleAdapter.hpp
-adapter_test_SOURCES += CaseAdapter.cpp
-adapter_test_SOURCES += CaseAdapter.hpp
-adapter_test_SOURCES += RobberAdapter.cpp
-adapter_test_SOURCES += RobberAdapter.hpp
-adapter_test_SOURCES += ReverseAdapter.cpp
-adapter_test_SOURCES += ReverseAdapter.hpp
+adapter_test_SOURCES += obfuscate_adapter.cpp
+adapter_test_SOURCES += obfuscate_adapter.hpp
+adapter_test_SOURCES += shuffle_adapter.cpp
+adapter_test_SOURCES += shuffle_adapter.hpp
+adapter_test_SOURCES += case_adapter.cpp
+adapter_test_SOURCES += case_adapter.hpp
+adapter_test_SOURCES += robber_adapter.cpp
+adapter_test_SOURCES += robber_adapter.hpp
+adapter_test_SOURCES += reverse_adapter.cpp
+adapter_test_SOURCES += reverse_adapter.hpp
 
 #
 # Example of a TFTP server and client

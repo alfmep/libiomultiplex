@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -27,11 +27,11 @@
 #include <fcntl.h>
 #include <getopt.h>
 
-#include "ObfuscateAdapter.hpp"
-#include "ShuffleAdapter.hpp"
-#include "CaseAdapter.hpp"
-#include "ReverseAdapter.hpp"
-#include "RobberAdapter.hpp"
+#include "obfuscate_adapter.hpp"
+#include "shuffle_adapter.hpp"
+#include "case_adapter.hpp"
+#include "reverse_adapter.hpp"
+#include "robber_adapter.hpp"
 
 
 using namespace std;
@@ -50,7 +50,7 @@ static void print_usage_and_exit (ostream& out, int exit_code)
     out << endl;
     out << "Usage: " << program_invocation_short_name << " [-v] [-i input_adapter ...] [-o output_adapter ...]" << endl;
     out << endl;
-    out << "       Simple example application to demonstrate Adapter objects in libiomultiplex." << endl;
+    out << "       Simple example application to demonstrate adapter objects in libiomultiplex." << endl;
     out << "       Data is read from standard input and written to standard output. The RX/TX data is modified in optional I/O adapters." << endl;
     out << "       Data is read and written in chunks of maximum " << chunk_size << " bytes." << endl;
     out << endl;
@@ -148,7 +148,7 @@ void parse_args (int argc,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static int add_adapter (shared_ptr<iom::Connection>& cptr, const string& name, bool rx)
+static int add_adapter (shared_ptr<iom::connection>& cptr, const string& name, bool rx)
 {
     // Before:
     //     cptr points to a connection or adapter object
@@ -156,19 +156,19 @@ static int add_adapter (shared_ptr<iom::Connection>& cptr, const string& name, b
     //     cptr points to newly created adapter with original cptr as slave connection
     //
     if (name == "obfuscate")
-        cptr.reset (new adapter_test::ObfuscateAdapter(cptr));
+        cptr.reset (new adapter_test::obfuscate_adapter(cptr));
     else if (name == "shuffle")
-        cptr.reset (new adapter_test::ShuffleAdapter(cptr));
+        cptr.reset (new adapter_test::shuffle_adapter(cptr));
     else if (name == "uppercase")
-        cptr.reset (new adapter_test::CaseAdapter(cptr, adapter_test::CaseAdapter::uppercase));
+        cptr.reset (new adapter_test::case_adapter(cptr, adapter_test::case_adapter::uppercase));
     else if (name == "lowercase")
-        cptr.reset (new adapter_test::CaseAdapter(cptr, adapter_test::CaseAdapter::lowercase));
+        cptr.reset (new adapter_test::case_adapter(cptr, adapter_test::case_adapter::lowercase));
     else if (name == "randomcase")
-        cptr.reset (new adapter_test::CaseAdapter(cptr, adapter_test::CaseAdapter::randomcase));
+        cptr.reset (new adapter_test::case_adapter(cptr, adapter_test::case_adapter::randomcase));
     else if (name == "reverse")
-        cptr.reset (new adapter_test::ReverseAdapter(cptr));
+        cptr.reset (new adapter_test::reverse_adapter(cptr));
     else if (name == "robber" && !rx)
-        cptr.reset (new adapter_test::RobberAdapter(cptr));
+        cptr.reset (new adapter_test::robber_adapter(cptr));
     else
         return 1;
 
@@ -179,8 +179,8 @@ static int add_adapter (shared_ptr<iom::Connection>& cptr, const string& name, b
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static int initialize (iom::iohandler_base& ioh,
-                       shared_ptr<iom::Connection>& rx,
-                       shared_ptr<iom::Connection>& tx,
+                       shared_ptr<iom::connection>& rx,
+                       shared_ptr<iom::connection>& tx,
                        list<string>& rx_adapter_names,
                        list<string>& tx_adapter_names)
 {
@@ -189,8 +189,8 @@ static int initialize (iom::iohandler_base& ioh,
 
     // Opend standard input and output
     //
-    rx.reset (new iom::FileConnection(ioh, file_stdin,  O_RDONLY));
-    tx.reset (new iom::FileConnection(ioh, file_stdout, O_WRONLY));
+    rx.reset (new iom::file_connection(ioh, file_stdin,  O_RDONLY));
+    tx.reset (new iom::file_connection(ioh, file_stdout, O_WRONLY));
     if (!rx->is_open() || !tx->is_open()) {
         cerr << "Error opening stdin/stdout" << endl;
         return 1;
@@ -267,8 +267,8 @@ int main (int argc, char* argv[])
 
     // Open files and create adapters
     //
-    shared_ptr<iom::Connection> rx;
-    shared_ptr<iom::Connection> tx;
+    shared_ptr<iom::connection> rx;
+    shared_ptr<iom::connection> tx;
     if (initialize(ioh, rx, tx, rx_adapter_names, tx_adapter_names))
         exit (1);
 

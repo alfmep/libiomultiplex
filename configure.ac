@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021-2023 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021-2023,2025 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -68,13 +68,13 @@ PREDEFINED_IN_DOXYGEN=
 EXCLUDE_FROM_DOXYGEN=
 
 #
-# Include statement for class TlsAdapter
+# Include statement for class tls_adapter
 #
 TLS_ADAPTER_HEADER_FILES=
 
 
 #
-# Give the user an option to disable OpenSSL (class TlsAdapter)
+# Give the user an option to disable OpenSSL (class tls_adapter)
 #
 AC_ARG_ENABLE([openssl],
 	[AS_HELP_STRING([--disable-openssl],
@@ -92,23 +92,23 @@ AM_COND_IF([ENABLE_OPENSSL_SET],
 				REQUIRE_IN_PC_FILE+=" openssl"
 				AM_CONDITIONAL([HAVE_OPENSSL], true)
 				TLS_ADAPTER_HEADER_FILES="#include <iomultiplex/x509_t.hpp>
-#include <iomultiplex/TlsConfig.hpp>
-#include <iomultiplex/TlsAdapter.hpp>"
+#include <iomultiplex/tls_config.hpp>
+#include <iomultiplex/tls_adapter.hpp>"
 			],
 			[
-				AC_MSG_WARN(Could not find openssl - libiomultiplex will not have class TlsAdapter);
+				AC_MSG_WARN(Could not find openssl - libiomultiplex will not have class tls_adapter);
 				AM_CONDITIONAL([HAVE_OPENSSL], false)
 				TLS_ADAPTER_HEADER_FILES=""
-				EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsConfig.hpp"
-				EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsAdapter.hpp"
+				EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/tls_config.hpp"
+				EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/tls_adapter.hpp"
 			])
 	],
 	[
-		AC_MSG_NOTICE(OpenSSL disabled - libiomultiplex will not have class TlsAdapter)
+		AC_MSG_NOTICE(OpenSSL disabled - libiomultiplex will not have class tls_adapter)
 		AM_CONDITIONAL([HAVE_OPENSSL], false)
 		TLS_ADAPTER_HEADER_FILES=""
-		EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsConfig.hpp"
-		EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/TlsAdapter.hpp"
+		EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/tls_config.hpp"
+		EXCLUDE_FROM_DOXYGEN+=" ../src/iomultiplex/tls_adapter.hpp"
 	]
 )
 AC_SUBST([openssl_CFLAGS])
@@ -186,7 +186,7 @@ AC_MSG_NOTICE([])
 AC_MSG_NOTICE([ Installation prefix.................. ${prefix}])
 AM_COND_IF([HAVE_OPENSSL],
 	[AC_MSG_NOTICE([ OpenSSL enabled...................... yes])],
-	[AC_MSG_NOTICE([ OpenSSL enabled...................... no (libiomultiplex will not have class TlsAdapter)])]
+	[AC_MSG_NOTICE([ OpenSSL enabled...................... no (libiomultiplex will not have class tls_adapter)])]
 )
 AM_COND_IF([ENABLE_EXAMPLES_SET],
 	[AC_MSG_NOTICE([ Build example applications........... yes (example applications are not installed)])],

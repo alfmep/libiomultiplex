@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -16,8 +16,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <iomultiplex.hpp>
+#include <iomultiplex/iohandler_base.hpp>
+#include <iomultiplex/fd_connection.hpp>
 #include <cstring>
+#include <unistd.h>
+#include <fcntl.h>
 
 
 namespace iomultiplex {
@@ -25,7 +28,7 @@ namespace iomultiplex {
 
     //--------------------------------------------------------------------------
     //--------------------------------------------------------------------------
-    std::pair<FdConnection, FdConnection> make_pipe (iohandler_base& ioh, int flags)
+    std::pair<fd_connection, fd_connection> make_pipe (iohandler_base& ioh, int flags)
     {
         int fd[2];
         if (pipe(fd) == 0) {
@@ -39,7 +42,7 @@ namespace iomultiplex {
         }else{
             fd[0] = fd[1] = -1;
         }
-        return std::make_pair(FdConnection(ioh, fd[0]), FdConnection(ioh, fd[1]));
+        return std::make_pair(fd_connection(ioh, fd[0]), fd_connection(ioh, fd[1]));
     }
 
 

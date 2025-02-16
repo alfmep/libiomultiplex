@@ -20,8 +20,7 @@
 #define IOMULTIPLEX_IOHANDLER_BASE_HPP
 
 #include <iomultiplex/types.hpp>
-#include <iomultiplex/Connection.hpp>
-#include <iomultiplex/PollDescriptors.hpp>
+#include <iomultiplex/connection.hpp>
 #include <functional>
 #include <memory>
 #include <atomic>
@@ -34,19 +33,18 @@
 #include <ctime>
 #include <signal.h>
 #include <sys/types.h>
-#include <poll.h>
 
 
 namespace iomultiplex {
 
 
     // Forward declaration
-    class IOHandler_Epoll;
+    class iohandler_epoll;
 
     /**
      * Default I/O handler implementation.
      */
-    using default_iohandler = IOHandler_Epoll;
+    using default_iohandler = iohandler_epoll;
 
 
     /**
@@ -95,9 +93,9 @@ namespace iomultiplex {
          * A read operation is queued and when the connection
          * have data available it will be read and the supplied
          * callback will be called.
-         * \note This method is normally called by a Connection
+         * \note This method is normally called by a connection
          *       object and not called directly.
-         * @param conn The Connection object that wants to read data.
+         * @param conn The connection object that wants to read data.
          * @param buf The start address to where data is stored.
          * @param size The number of bytes to read.
          * @param rx_cb Callback to be called when there is a result.
@@ -116,7 +114,7 @@ namespace iomultiplex {
          *         read operation was queued, not that the actual read
          *         operation was successful.
          */
-        inline int read (Connection& conn,
+        inline int read (connection& conn,
                          void* buf,
                          size_t size,
                          io_callback_t rx_cb=nullptr,
@@ -132,9 +130,9 @@ namespace iomultiplex {
          * A write operation is queued and when the connection
          * is ready to write, it will be written and the supplied
          * callback will be called.
-         * \note This method is normally called by a Connection
+         * \note This method is normally called by a connection
          *       object and not called directly.
-         * @param conn The Connection object that wants to write data.
+         * @param conn The connection object that wants to write data.
          * @param buf The start address from where data is written.
          * @param size The number of bytes to write.
          * @param tx_cb A callback to be called when there is a result.
@@ -153,7 +151,7 @@ namespace iomultiplex {
          *         write operation was queued, not that the actual write
          *         operation was successful.
          */
-        inline int write (Connection& conn,
+        inline int write (connection& conn,
                           const void* buf,
                           size_t size,
                           io_callback_t tx_cb=nullptr,
@@ -185,7 +183,7 @@ namespace iomultiplex {
          *             for this connection are removed immediately
          *             without the associated callback being called.
          */
-        virtual void cancel (Connection& conn,
+        virtual void cancel (connection& conn,
                              bool cancel_rx,
                              bool cancel_tx,
                              bool fast) = 0;
@@ -228,7 +226,7 @@ namespace iomultiplex {
          * @return 0 on success, -1 and <code>errno</code> is
          *         set if the I/O operation couldn't be queued.
          */
-        virtual int queue_io_op (Connection& conn,
+        virtual int queue_io_op (connection& conn,
                                  void* buf,
                                  size_t size,
                                  io_callback_t cb,

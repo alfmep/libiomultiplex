@@ -40,14 +40,14 @@ static constexpr const char* tls_key_file  = "tls-snakeoil.privkey";
 //
 // A memory buffer pool used by client connections
 //
-iom::BufferPool buffer_pool (2048, 4, 4);
+iom::buffer_pool buffer_pool (2048, 4, 4);
 
 
-static void on_new_client (iom::SocketConnection& srv_sock,
+static void on_new_client (iom::socket_connection& srv_sock,
                            iom::io_result_t& ior,
-                           const iom::SockAddr& peer_addr);
-static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls, int errnum);
-static void on_rx (shared_ptr<iom::TlsAdapter> dtls,
+                           const iom::sock_addr& peer_addr);
+static void on_dtls_handshake (shared_ptr<iom::tls_adapter> dtls, int errnum);
+static void on_rx (shared_ptr<iom::tls_adapter> dtls,
                    iom::io_result_t& ior);
 
 
@@ -64,8 +64,8 @@ static void logger (unsigned prio, const char* msg)
 //------------------------------------------------------------------------------
 int main (int argc, char* argv[])
 {
-    iom::Log::set_callback (logger);
-    iom::Log::priority (LOG_DEBUG);
+    iom::log::set_callback (logger);
+    iom::log::priority (LOG_DEBUG);
 
     // Create an I/O handler instance
     //
@@ -73,11 +73,11 @@ int main (int argc, char* argv[])
 
     // Create the server socket
     //
-    iom::SocketConnection srv_sock (ioh);
+    iom::socket_connection srv_sock (ioh);
 
     // Local IP address we're going to listen on
     //
-    iom::IpAddr addr (local_address, local_port);
+    iom::ip_addr addr (local_address, local_port);
 
     // Open the server socket
     //
@@ -114,9 +114,9 @@ int main (int argc, char* argv[])
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_new_client (iom::SocketConnection& srv_sock,
+static void on_new_client (iom::socket_connection& srv_sock,
                            iom::io_result_t& ior,
-                           const iom::SockAddr& peer_addr)
+                           const iom::sock_addr& peer_addr)
 {
     if (ior.errnum) {
         // Check for error
@@ -132,7 +132,7 @@ static void on_new_client (iom::SocketConnection& srv_sock,
 
     // Create and open a client socket
     //
-    auto sock = make_shared<iom::SocketConnection> (srv_sock.io_handler());
+    auto sock = make_shared<iom::socket_connection> (srv_sock.io_handler());
     if (sock->open(peer_addr.family(), srv_sock.type())) {
         perror ("srv_sock.open");
     }
@@ -149,16 +149,16 @@ static void on_new_client (iom::SocketConnection& srv_sock,
 
     // Create a TLS adapter object
     //
-    auto dtls = make_shared<iom::TlsAdapter> (sock);
+    auto dtls = make_shared<iom::tls_adapter> (sock);
 
     // Queue a DTLS handlshake request
     //
-    iom::TlsConfig tls_cfg (false);
+    iom::tls_config tls_cfg (false);
     tls_cfg.cert_file = tls_cert_file;
     tls_cfg.privkey_file = tls_key_file;
 
     if (dtls->start_server_dtls(tls_cfg,
-                                [dtls](iom::TlsAdapter& conn, int errnum){
+                                [dtls](iom::tls_adapter& conn, int errnum){
                                     // We have captured 'dtls' so it doesn't go out of scope
                                     on_dtls_handshake (dtls, errnum);
                                 },
@@ -185,10 +185,10 @@ static void on_new_client (iom::SocketConnection& srv_sock,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls, int errnum)
+static void on_dtls_handshake (shared_ptr<iom::tls_adapter> dtls, int errnum)
 {
     if (errnum || dtls->last_error()) {
-        auto& sock = dynamic_cast<iom::SocketConnection&> (dtls->connection());
+        auto& sock = dynamic_cast<iom::socket_connection&> (dtls->conn());
         if (errnum) {
             if (errnum != ECANCELED)
                 cerr << "DTLS handshake error: " << strerror(errnum) << " (" << errnum << ") with "
@@ -222,13 +222,13 @@ static void on_dtls_handshake (shared_ptr<iom::TlsAdapter> dtls, int errnum)
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_rx (shared_ptr<iom::TlsAdapter> dtls,
+static void on_rx (shared_ptr<iom::tls_adapter> dtls,
                    iom::io_result_t& ior)
 {
     // Check for error or closed connection
     //
     if (ior.result <= 0) {
-        auto& sock = dynamic_cast<iom::SocketConnection&> (dtls->connection());
+        auto& sock = dynamic_cast<iom::socket_connection&> (dtls->conn());
         switch (ior.errnum) {
         case 0:
             cerr << "Connection closed by peer " << sock.peer().to_string() << endl;

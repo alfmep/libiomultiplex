@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2021,2022,2024 Dan Arrhenius <dan@ultramarin.se>
+# Copyright (C) 2021,2022,2024,2025 Dan Arrhenius <dan@ultramarin.se>
 #
 # This file is part of libiomultiplex
 #
@@ -40,29 +40,29 @@ BUILT_SOURCES =
 # Source files
 libiomultiplex_la_SOURCES  =
 libiomultiplex_la_SOURCES += iomultiplex/utils.cpp
-libiomultiplex_la_SOURCES += iomultiplex/Log.cpp
-libiomultiplex_la_SOURCES += iomultiplex/SockAddr.cpp
-libiomultiplex_la_SOURCES += iomultiplex/IpAddr.cpp
-libiomultiplex_la_SOURCES += iomultiplex/UxAddr.cpp
-libiomultiplex_la_SOURCES += iomultiplex/BufferPool.cpp
-libiomultiplex_la_SOURCES += iomultiplex/Resolver.cpp
-libiomultiplex_la_SOURCES += iomultiplex/PollDescriptors.cpp
-libiomultiplex_la_SOURCES += iomultiplex/Connection.cpp
-libiomultiplex_la_SOURCES += iomultiplex/IOHandler_Poll.cpp
-libiomultiplex_la_SOURCES += iomultiplex/IOHandler_Epoll.cpp
-libiomultiplex_la_SOURCES += iomultiplex/FdConnection.cpp
-libiomultiplex_la_SOURCES += iomultiplex/FileConnection.cpp
-libiomultiplex_la_SOURCES += iomultiplex/FileNotifier.cpp
+libiomultiplex_la_SOURCES += iomultiplex/log.cpp
+libiomultiplex_la_SOURCES += iomultiplex/sock_addr.cpp
+libiomultiplex_la_SOURCES += iomultiplex/ip_addr.cpp
+libiomultiplex_la_SOURCES += iomultiplex/ux_addr.cpp
+libiomultiplex_la_SOURCES += iomultiplex/buffer_pool.cpp
+libiomultiplex_la_SOURCES += iomultiplex/resolver.cpp
+libiomultiplex_la_SOURCES += iomultiplex/poll_descriptors.cpp
+libiomultiplex_la_SOURCES += iomultiplex/connection.cpp
+libiomultiplex_la_SOURCES += iomultiplex/iohandler_poll.cpp
+libiomultiplex_la_SOURCES += iomultiplex/iohandler_epoll.cpp
+libiomultiplex_la_SOURCES += iomultiplex/fd_connection.cpp
+libiomultiplex_la_SOURCES += iomultiplex/file_connection.cpp
+libiomultiplex_la_SOURCES += iomultiplex/file_notifier.cpp
 libiomultiplex_la_SOURCES += iomultiplex/termios_cfg.cpp
-libiomultiplex_la_SOURCES += iomultiplex/SerialConnection.cpp
-libiomultiplex_la_SOURCES += iomultiplex/TimerConnection.cpp
-libiomultiplex_la_SOURCES += iomultiplex/SocketConnection.cpp
-libiomultiplex_la_SOURCES += iomultiplex/TimerSet.cpp
-libiomultiplex_la_SOURCES += iomultiplex/Adapter.cpp
-libiomultiplex_la_SOURCES += iomultiplex/ChunkAdapter.cpp
+libiomultiplex_la_SOURCES += iomultiplex/serial_connection.cpp
+libiomultiplex_la_SOURCES += iomultiplex/timer_connection.cpp
+libiomultiplex_la_SOURCES += iomultiplex/socket_connection.cpp
+libiomultiplex_la_SOURCES += iomultiplex/timer_set.cpp
+libiomultiplex_la_SOURCES += iomultiplex/adapter.cpp
+libiomultiplex_la_SOURCES += iomultiplex/chunk_adapter.cpp
 if HAVE_OPENSSL
 libiomultiplex_la_SOURCES += iomultiplex/x509_t.cpp
-libiomultiplex_la_SOURCES += iomultiplex/TlsAdapter.cpp
+libiomultiplex_la_SOURCES += iomultiplex/tls_adapter.cpp
 endif
 
 # Header files
@@ -71,32 +71,32 @@ nobase_libiomultiplex_HEADERS =
 nobase_libiomultiplex_HEADERS += iomultiplex.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/types.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/utils.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/Log.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/SockAddr.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/IpAddr.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/UxAddr.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/BufferPool.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/Resolver.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/log.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/sock_addr.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/ip_addr.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/ux_addr.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/buffer_pool.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/resolver.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/io_result_t.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/PollDescriptors.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/Connection.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/poll_descriptors.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/connection.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/iohandler_base.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/IOHandler_Poll.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/IOHandler_Epoll.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/FdConnection.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/FileConnection.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/FileNotifier.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/iohandler_poll.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/iohandler_epoll.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/fd_connection.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/file_connection.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/file_notifier.hpp
 nobase_libiomultiplex_HEADERS += iomultiplex/termios_cfg.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/SerialConnection.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/TimerConnection.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/SocketConnection.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/TimerSet.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/Adapter.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/ChunkAdapter.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/serial_connection.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/timer_connection.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/socket_connection.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/timer_set.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/adapter.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/chunk_adapter.hpp
 if HAVE_OPENSSL
 nobase_libiomultiplex_HEADERS += iomultiplex/x509_t.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/TlsConfig.hpp
-nobase_libiomultiplex_HEADERS += iomultiplex/TlsAdapter.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/tls_config.hpp
+nobase_libiomultiplex_HEADERS += iomultiplex/tls_adapter.hpp
 endif
 
 # Header files that is not to be installed

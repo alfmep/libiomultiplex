@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -37,10 +37,10 @@ using namespace std;
 //------------------------------------------------------------------------------
 struct appdata_t {
     iom::default_iohandler ioh;
-    iom::SocketConnection sock;
-    std::unique_ptr<iom::SockAddr> addr;
-    iom::TlsAdapter tls;
-    iom::TlsConfig tls_cfg;
+    iom::socket_connection sock;
+    std::unique_ptr<iom::sock_addr> addr;
+    iom::tls_adapter tls;
+    iom::tls_config tls_cfg;
     string host_to_resolve;
     bool ipv4_only;
     bool ipv6_only;
@@ -233,17 +233,17 @@ static void parse_args (int argc, char* argv[], appdata_t& app)
     try {
         if (optind < argc) {
             if (app.unix_only) {
-                app.addr.reset (new iom::UxAddr(argv[optind++]));
+                app.addr.reset (new iom::ux_addr(argv[optind++]));
                 if (optind < argc)
                     ++optind;
             }else{
-                app.addr.reset (new iom::IpAddr);
+                app.addr.reset (new iom::ip_addr);
                 app.host_to_resolve = argv[optind++];
                 if (optind < argc) {
                     int port = stoi (argv[optind++]);
                     if (port<1 || port>65535)
                         throw invalid_argument ("Invalid port number");
-                    dynamic_cast<iom::IpAddr*>(app.addr.get())->port (port);
+                    dynamic_cast<iom::ip_addr*>(app.addr.get())->port (port);
                 }else{
                     cerr << "Error: Missing PORT argument" << endl;
                     exit (1);
@@ -272,9 +272,9 @@ static void parse_args (int argc, char* argv[], appdata_t& app)
 static bool resolve_host (appdata_t& app)
 {
     bool retval = false;
-    iom::IpAddr& addr = dynamic_cast<iom::IpAddr&> (*app.addr);
+    iom::ip_addr& addr = dynamic_cast<iom::ip_addr&> (*app.addr);
 
-    auto addr_list = iom::Resolver().lookup_host (app.host_to_resolve, addr.port());
+    auto addr_list = iom::resolver().lookup_host (app.host_to_resolve, addr.port());
 
     for (auto& a : addr_list) {
         if (!app.ipv4_only && !app.ipv6_only) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -34,7 +34,7 @@ struct appargs_t {
     int parse_args (int argc, char* argv[]);
     void print_usage (std::ostream& out);
 
-    iomultiplex::IpAddr bind_addr;
+    iomultiplex::ip_addr bind_addr;
     std::string tftproot;
     std::string pid_file;
     std::string cert_file;

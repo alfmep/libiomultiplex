@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -44,9 +44,9 @@ static constexpr const size_t   default_size = 1;      // 1 byte
 
 struct appdata_t {
     iom::default_iohandler ioh;
-    iom::SocketConnection srv_sock;
-    iom::IpAddr srv_addr;
-    iom::TimerSet beacon_timers;
+    iom::socket_connection srv_sock;
+    iom::ip_addr srv_addr;
+    iom::timer_set beacon_timers;
     unique_ptr<char> beacons[16];
 
     // Command line options
@@ -67,9 +67,9 @@ struct appdata_t {
 
 static void print_usage_and_exit (ostream& out, int exit_code);
 static void parse_args (int argc, char* argv[], appdata_t& app);
-static void on_new_client (appdata_t& app, shared_ptr<iom::SocketConnection> cs, int errnum);
+static void on_new_client (appdata_t& app, shared_ptr<iom::socket_connection> cs, int errnum);
 static void send_beacon (appdata_t& app,
-                         shared_ptr<iom::SocketConnection> cs,
+                         shared_ptr<iom::socket_connection> cs,
                          shared_ptr<int> beacon_index,
                          long timer_id);
 
@@ -221,8 +221,8 @@ int main (int argc, char* argv[])
     // Start accepting clients
     //
     cout << "Accepting clients on " << app.srv_addr.to_string() << endl;
-    app.srv_sock.accept ([&app](iom::SocketConnection& ss,
-                                shared_ptr<iom::SocketConnection> cs,
+    app.srv_sock.accept ([&app](iom::socket_connection& ss,
+                                shared_ptr<iom::socket_connection> cs,
                                 int errnum)
                              {
                                  on_new_client (app, cs, errnum);
@@ -239,7 +239,7 @@ int main (int argc, char* argv[])
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void on_new_client (appdata_t& app,
-                           shared_ptr<iom::SocketConnection> cs,
+                           shared_ptr<iom::socket_connection> cs,
                            int errnum)
 {
     if (errnum) {
@@ -255,7 +255,7 @@ static void on_new_client (appdata_t& app,
     //
     auto beacon_index = make_shared<int> ();
     *beacon_index = 0;
-    app.beacon_timers.set (0, app.interval, [&app, cs, beacon_index](iom::TimerSet& ts, long timer_id)
+    app.beacon_timers.set (0, app.interval, [&app, cs, beacon_index](iom::timer_set& ts, long timer_id)
                                             {
                                                 // Send beacon when the timer expires
                                                 send_beacon (app, cs, beacon_index, timer_id);
@@ -263,8 +263,8 @@ static void on_new_client (appdata_t& app,
 
     // Continue accepting new clients
     //
-    app.srv_sock.accept ([&app](iom::SocketConnection& ss,
-                                shared_ptr<iom::SocketConnection> cs,
+    app.srv_sock.accept ([&app](iom::socket_connection& ss,
+                                shared_ptr<iom::socket_connection> cs,
                                 int errnum)
                              {
                                  on_new_client (app, cs, errnum);
@@ -275,7 +275,7 @@ static void on_new_client (appdata_t& app,
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void send_beacon (appdata_t& app,
-                         shared_ptr<iom::SocketConnection> cs,
+                         shared_ptr<iom::socket_connection> cs,
                          shared_ptr<int> beacon_index,
                          long timer_id)
 {
@@ -296,7 +296,7 @@ static void send_beacon (appdata_t& app,
                            cout << "Client " << cs->peer().to_string() << " disconnected." << endl;
                        app.beacon_timers.cancel (timer_id);
                        // Free client socket resources
-                       const_cast<shared_ptr<iom::SocketConnection>&>(cs).reset ();
+                       const_cast<shared_ptr<iom::socket_connection>&>(cs).reset ();
                    }
                    return false;
                });

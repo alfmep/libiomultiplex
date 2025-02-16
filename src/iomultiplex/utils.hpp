@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -20,8 +20,8 @@
 #define IOMULTIPLEX_UTILS_HPP
 
 #include <iomultiplex/iohandler_base.hpp>
-#include <iomultiplex/Connection.hpp>
-#include <iomultiplex/FdConnection.hpp>
+#include <iomultiplex/connection.hpp>
+#include <iomultiplex/fd_connection.hpp>
 #include <utility>
 
 
@@ -31,7 +31,7 @@ namespace iomultiplex {
     /**
      *
      */
-    std::pair<FdConnection, FdConnection> make_pipe (iohandler_base& ioh, int flags=0);
+    std::pair<fd_connection, fd_connection> make_pipe (iohandler_base& ioh, int flags=0);
 
 }
 #endif

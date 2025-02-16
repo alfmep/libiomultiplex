@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -37,13 +37,13 @@ static constexpr const unsigned default_timeout = 60000; // 1 minute
 //
 // A memory buffer pool used by client connections
 //
-iom::BufferPool buffer_pool (2048, 4, 4);
+iom::buffer_pool buffer_pool (2048, 4, 4);
 
 
-static void on_accept (iom::SocketConnection& srv_sock,
-                       std::shared_ptr<iom::SocketConnection> client_sock,
+static void on_accept (iom::socket_connection& srv_sock,
+                       std::shared_ptr<iom::socket_connection> client_sock,
                        int errnum);
-static void on_rx (std::shared_ptr<iom::SocketConnection> sock,
+static void on_rx (std::shared_ptr<iom::socket_connection> sock,
                    iom::io_result_t& ior);
 
 
@@ -57,11 +57,11 @@ int main (int argc, char* argv[])
 
     // Create the server socket
     //
-    iom::SocketConnection srv_sock (ioh);
+    iom::socket_connection srv_sock (ioh);
 
     // Local IP address we're going to listen on
     //
-    iom::IpAddr addr (local_address, local_port);
+    iom::ip_addr addr (local_address, local_port);
 
     // Open the server socket
     //
@@ -111,8 +111,8 @@ int main (int argc, char* argv[])
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_accept (iom::SocketConnection& srv_sock,
-                       std::shared_ptr<iom::SocketConnection> client_sock,
+static void on_accept (iom::socket_connection& srv_sock,
+                       std::shared_ptr<iom::socket_connection> client_sock,
                        int errnum)
 {
     if (errnum) {
@@ -151,7 +151,7 @@ static void on_accept (iom::SocketConnection& srv_sock,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-static void on_rx (std::shared_ptr<iom::SocketConnection> sock,
+static void on_rx (std::shared_ptr<iom::socket_connection> sock,
                    iom::io_result_t& ior)
 {
     // Check for error or closed connection

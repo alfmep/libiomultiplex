@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -62,7 +62,7 @@ struct appstate_t {
     const appargs_t& opt;
     std::string real_tftproot;
     std::vector<std::unique_ptr<iom::iohandler_base>> workers;
-    std::vector<iom::SocketConnection> listeners;
+    std::vector<iom::socket_connection> listeners;
     uid_t uid;
     gid_t gid;
 
@@ -78,18 +78,18 @@ std::mutex appstate_t::server_done;
 
 
 static void accept_request (appstate_t& app,
-                            iom::SocketConnection& sock,
+                            iom::socket_connection& sock,
                             void* buf,
                             size_t size);
 static void handle_new_request (appstate_t& app,
                                 iom::io_result_t& ior,
-                                iom::SocketConnection& sock,
-                                const iom::IpAddr& addr);
+                                iom::socket_connection& sock,
+                                const iom::ip_addr& addr);
 static void handle_rq (appstate_t& app,
                        opcode_t op,
                        const std::string& filename,
-                       iom::SocketConnection& sock,
-                       const iom::IpAddr& addr);
+                       iom::socket_connection& sock,
+                       const iom::ip_addr& addr);
 
 
 
@@ -216,7 +216,7 @@ static int do_fork ()
 {
     auto pid = fork ();
     if (pid < 0) {
-        iom::Log::error ("Unable to fork process: %s", strerror(errno));
+        iom::log::error ("Unable to fork process: %s", strerror(errno));
         return -1;
     }
     else if (pid > 0) {
@@ -270,30 +270,30 @@ static bool set_privileges (appstate_t& app)
     errno = 0;
     // Get uid and gid from application arguments
     if (!app.opt.user.empty() && get_uid(app.opt.user, app.uid)) {
-        iom::Log::error ("Unable to set user id: %s",
+        iom::log::error ("Unable to set user id: %s",
                          (errno ? strerror(errno) : "No such user."));
         return -1;
     }
     if (!app.opt.user.empty() && get_gid(app.opt.group, app.gid)) {
-        iom::Log::error ("Unable to set group id: %s",
+        iom::log::error ("Unable to set group id: %s",
                          (errno ? strerror(errno) : "No such group."));
         return -1;
     }
 
     // Set group id
     if (app.gid != getgid()) {
-        iom::Log::debug ("Setting group id to %u", (unsigned(app.gid)));
+        iom::log::debug ("Setting group id to %u", (unsigned(app.gid)));
         if (setgid(app.gid)) {
-            iom::Log::error ("Unable to set group id: %s", strerror(errno));
+            iom::log::error ("Unable to set group id: %s", strerror(errno));
             return -1;
         }
     }
 
     // Set user id
     if (app.uid != getuid()) {
-        iom::Log::debug ("Setting user id to %u", (unsigned(app.uid)));
+        iom::log::debug ("Setting user id to %u", (unsigned(app.uid)));
         if (setuid(app.uid)) {
-            iom::Log::error ("Unable to set user id: %s", strerror(errno));
+            iom::log::error ("Unable to set user id: %s", strerror(errno));
             return -1;
         }
     }
@@ -313,7 +313,7 @@ static int create_io_workers (appstate_t& app)
             auto& ioh = *app.workers.back();
 
             // Create new socket listener
-            app.listeners.emplace_back (iom::SocketConnection(ioh));
+            app.listeners.emplace_back (iom::socket_connection(ioh));
             auto& sock = app.listeners.back();
 
             if (sock.open(app.opt.bind_addr.family(), SOCK_DGRAM) == 0) {
@@ -323,13 +323,13 @@ static int create_io_workers (appstate_t& app)
                     sock.bind (app.opt.bind_addr);
             }
             if (errno) {
-                iom::Log::error ("Unable to open/bind socket: %s", strerror(errno));
+                iom::log::error ("Unable to open/bind socket: %s", strerror(errno));
                 return 1;
             }
         }
     }
     catch (std::exception& e) {
-        iom::Log::error ("Unable to create an I/O handler: %s", e.what());
+        iom::log::error ("Unable to create an I/O handler: %s", e.what());
         return 1;
     }
 
@@ -354,16 +354,16 @@ int main (int argc, char* argv[])
     // Configure logging
     //
     if (opt.log_to_stdout) {
-        iom::Log::set_callback (stdout_logger);
+        iom::log::set_callback (stdout_logger);
     }else{
         openlog ("iom-tftpd", LOG_PID, LOG_DAEMON);
     }
-    iom::Log::priority (opt.verbose ? LOG_DEBUG : LOG_INFO);
+    iom::log::priority (opt.verbose ? LOG_DEBUG : LOG_INFO);
 
     // Change working directory to the tftp root
     //
     if (set_tftproot(app)) {
-        iom::Log::error ("Unable to set working directory: %s", strerror(errno));
+        iom::log::error ("Unable to set working directory: %s", strerror(errno));
         exit (1);
     }
 
@@ -378,7 +378,7 @@ int main (int argc, char* argv[])
         std::ofstream pf (app.opt.pid_file);
         pf << getpid() << std::endl;
         if (!pf.good()) {
-            iom::Log::error ("Error creating pid file");
+            iom::log::error ("Error creating pid file");
             exit (1);
         }
     }
@@ -403,19 +403,19 @@ int main (int argc, char* argv[])
     for (auto& ioh : app.workers)
         ioh->run (true);
 
-    iom::Log::info ("Serving files from %s, directory %s",
+    iom::log::info ("Serving files from %s, directory %s",
                     app.opt.bind_addr.to_string(true).c_str(),
                     app.opt.tftproot.c_str());
     if (app.opt.allow_wrq) {
         if (app.opt.max_wrq_size)
-            iom::Log::debug ("Allow write requests with a size limit of %lu bytes", app.opt.max_wrq_size);
+            iom::log::debug ("Allow write requests with a size limit of %lu bytes", app.opt.max_wrq_size);
         else
-            iom::Log::debug ("Allow write requests with no size limit");
+            iom::log::debug ("Allow write requests with no size limit");
     }
 
     // Start receiving requests on all socket listeners
     //
-    iom::BufferPool pool (sizeof(tftp_pkt_t), app.opt.num_workers);
+    iom::buffer_pool pool (sizeof(tftp_pkt_t), app.opt.num_workers);
     for (auto& sock : app.listeners)
         accept_request (app, sock, pool.get(), pool.buf_size());
 
@@ -439,7 +439,7 @@ int main (int argc, char* argv[])
         ioh->join ();
     }
 
-    iom::Log::info ("Stopped");
+    iom::log::info ("Stopped");
     return 0;
 }
 
@@ -447,22 +447,22 @@ int main (int argc, char* argv[])
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 static void accept_request (appstate_t& app,
-                            iom::SocketConnection& sock,
+                            iom::socket_connection& sock,
                             void* buf,
                             size_t size)
 {
     sock.recvfrom (buf,
                    size,
-                   [&app](iom::SocketConnection& sock,
+                   [&app](iom::socket_connection& sock,
                           iom::io_result_t& ior,
-                          const iom::SockAddr& addr)
+                          const iom::sock_addr& addr)
                    {
                        // Called by the socket listener
                        // on a new incomming connection
                        handle_new_request (app,
                                            ior,
                                            sock,
-                                           dynamic_cast<const iom::IpAddr&>(addr));
+                                           dynamic_cast<const iom::ip_addr&>(addr));
                    },
                    -1);
 }
@@ -472,8 +472,8 @@ static void accept_request (appstate_t& app,
 //------------------------------------------------------------------------------
 static void handle_new_request (appstate_t& app,
                                 iom::io_result_t& ior,
-                                iom::SocketConnection& sock,
-                                const iom::IpAddr& addr)
+                                iom::socket_connection& sock,
+                                const iom::ip_addr& addr)
 {
     tftp_pkt_t& pkt = *((tftp_pkt_t*)ior.buf);
 
@@ -485,7 +485,7 @@ static void handle_new_request (appstate_t& app,
             sock.close ();
             return;
         }else{
-            iom::Log::info ("Error waiting for client request on socket #%d: ",
+            iom::log::info ("Error waiting for client request on socket #%d: ",
                             sock.handle(), strerror(ior.errnum));
         }
         // Continue listening for new clients
@@ -497,7 +497,7 @@ static void handle_new_request (appstate_t& app,
     //
     if (ior.result < tftp_min_packet_size) {
         // Invalid tftp packet, continue listening for new clients
-        iom::Log::info ("Ignoring TFTP request with packet size %d from %s",
+        iom::log::info ("Ignoring TFTP request with packet size %d from %s",
                         ior.result, addr.to_string(true).c_str());
         // Continue listening for new clients
         accept_request (app, sock, ior.buf, ior.size);
@@ -525,7 +525,7 @@ static void handle_new_request (appstate_t& app,
 
     default:
         // Send error response
-        iom::Log::info ("Invalid request (opcode %d) from %s",
+        iom::log::info ("Invalid request (opcode %d) from %s",
                         ntohs(pkt.opcode),
                         addr.to_string(true).c_str());
         sock.sendto (&tftp_err_pkt_illegal_op, tftp_err_pkt_illegal_op.size(), addr, nullptr, -1);
@@ -589,13 +589,13 @@ static std::map<std::string, std::string> parse_options (const tftp_pkt_t& pkt,
 static void handle_rq (appstate_t& app,
                        opcode_t op,
                        const std::string& filename,
-                       iom::SocketConnection& sock,
-                       const iom::IpAddr& addr)
+                       iom::socket_connection& sock,
+                       const iom::ip_addr& addr)
 {
     std::lock_guard<std::mutex> lock (app.session_mutex);
 
     if (app.opt.max_clients  &&  app.sessions.size() >= app.opt.max_clients) {
-        iom::Log::info ("%s from %s - Too many clients",
+        iom::log::info ("%s from %s - Too many clients",
                         (op==op_rrq ? "RRQ" : "WRQ"),
                         addr.to_string(true).c_str());
         sock.sendto (&tftp_err_pkt_server_busy, tftp_err_pkt_server_busy.size(), addr, nullptr, -1);

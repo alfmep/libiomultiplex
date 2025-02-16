@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -43,11 +43,11 @@ int main (int argc, char* argv[])
 
     // Create the client socket
     //
-    iom::SocketConnection sock (ioh);
+    iom::socket_connection sock (ioh);
 
     // Address of the server we're connecting to
     //
-    iom::IpAddr addr (server_address, server_port);
+    iom::ip_addr addr (server_address, server_port);
 
     // Open the socket
     //

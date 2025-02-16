@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -26,7 +26,7 @@
 namespace iomultiplex {
 
     // Forward declaration.
-    class Connection;
+    class connection;
 
     /**
      * Input/output operation result.
@@ -34,7 +34,7 @@ namespace iomultiplex {
      */
     class io_result_t {
     public:
-        Connection& conn;   /**< The connection that requested the read/write operation. */
+        connection& conn;   /**< The connection that requested the read/write operation. */
         void*       buf;    /**< The buffer that was read to/written from. */
         size_t      size;   /**< The requested number of bytes to read/write. */
         ssize_t     result; /**< The number of bytes that was read/written, or -1 on error.
@@ -46,7 +46,7 @@ namespace iomultiplex {
         int         errnum; /**< The value of <code>errno</code> after the read/write operation. */
         unsigned    timeout;/**< The original timeout value in milliseconds. If -1, no timeout was set. */
 
-        io_result_t (Connection& c, void* b, size_t s, ssize_t r, int e, unsigned t)
+        io_result_t (connection& c, void* b, size_t s, ssize_t r, int e, unsigned t)
             : conn {c},
               buf {b},
               size {s},

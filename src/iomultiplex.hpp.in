@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -27,28 +27,28 @@ namespace iomultiplex {
 
 
 #include <iomultiplex/types.hpp>
-#include <iomultiplex/Log.hpp>
-#include <iomultiplex/SockAddr.hpp>
-#include <iomultiplex/IpAddr.hpp>
-#include <iomultiplex/UxAddr.hpp>
-#include <iomultiplex/BufferPool.hpp>
-#include <iomultiplex/Resolver.hpp>
+#include <iomultiplex/log.hpp>
+#include <iomultiplex/sock_addr.hpp>
+#include <iomultiplex/ip_addr.hpp>
+#include <iomultiplex/ux_addr.hpp>
+#include <iomultiplex/buffer_pool.hpp>
+#include <iomultiplex/resolver.hpp>
 #include <iomultiplex/io_result_t.hpp>
-#include <iomultiplex/PollDescriptors.hpp>
+#include <iomultiplex/poll_descriptors.hpp>
 #include <iomultiplex/iohandler_base.hpp>
-#include <iomultiplex/IOHandler_Poll.hpp>
-#include <iomultiplex/IOHandler_Epoll.hpp>
-#include <iomultiplex/Connection.hpp>
-#include <iomultiplex/FdConnection.hpp>
-#include <iomultiplex/FileConnection.hpp>
-#include <iomultiplex/FileNotifier.hpp>
+#include <iomultiplex/iohandler_poll.hpp>
+#include <iomultiplex/iohandler_epoll.hpp>
+#include <iomultiplex/connection.hpp>
+#include <iomultiplex/fd_connection.hpp>
+#include <iomultiplex/file_connection.hpp>
+#include <iomultiplex/file_notifier.hpp>
 #include <iomultiplex/termios_cfg.hpp>
-#include <iomultiplex/SerialConnection.hpp>
-#include <iomultiplex/TimerConnection.hpp>
-#include <iomultiplex/SocketConnection.hpp>
-#include <iomultiplex/TimerSet.hpp>
-#include <iomultiplex/Adapter.hpp>
-#include <iomultiplex/ChunkAdapter.hpp>
+#include <iomultiplex/serial_connection.hpp>
+#include <iomultiplex/timer_connection.hpp>
+#include <iomultiplex/socket_connection.hpp>
+#include <iomultiplex/timer_set.hpp>
+#include <iomultiplex/adapter.hpp>
+#include <iomultiplex/chunk_adapter.hpp>
 @TLS_ADAPTER_HEADER_FILES@
 #include <iomultiplex/utils.hpp>
 

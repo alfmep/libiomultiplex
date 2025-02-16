@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -63,7 +63,7 @@ int tftp_session_t::start (opcode_t op,
                            bool allow_overwrite,
                            size_t max_size,
                            const std::string& filename,
-                           const iomultiplex::IpAddr& addr,
+                           const iomultiplex::ip_addr& addr,
                            std::function<void (tftp_session_t& sess)> on_session_done)
 {
     is_wrq = op == op_wrq;
@@ -88,7 +88,7 @@ int tftp_session_t::start (opcode_t op,
     // Open the client socket
     //
     if (sock.open(addr.family(), SOCK_DGRAM)) {
-        iom::Log::info ("%s from %s - Error opening client socket: %s",
+        iom::log::info ("%s from %s - Error opening client socket: %s",
                         (is_wrq ? "WRQ" : "RRQ"),
                         addr.to_string(true).c_str(),
                         strerror(errno));
@@ -99,10 +99,10 @@ int tftp_session_t::start (opcode_t op,
     sock.connect (addr, nullptr);
 
     std::stringstream ss;
-    ss << dynamic_cast<const iom::IpAddr&>(sock.addr()).port() << ':' << addr.to_string(true).c_str();
+    ss << dynamic_cast<const iom::ip_addr&>(sock.addr()).port() << ':' << addr.to_string(true).c_str();
     sess_id = ss.str ();
 
-    iom::Log::info ("%s session %s, file %s, block size %u",
+    iom::log::info ("%s session %s, file %s, block size %u",
                     (is_wrq ? "WRQ" : "RRQ"),
                     sess_id.c_str(),
                     filename.c_str(),
@@ -119,7 +119,7 @@ int tftp_session_t::start (opcode_t op,
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-int tftp_session_t::open_file (const iomultiplex::IpAddr& addr)
+int tftp_session_t::open_file (const iomultiplex::ip_addr& addr)
 {
     // Sanity check
     //
@@ -128,7 +128,7 @@ int tftp_session_t::open_file (const iomultiplex::IpAddr& addr)
         filename.find("../")==0 ||                // Relative path not allowed
         filename.find("/../")!=std::string::npos) // Relative path not allowed
     {
-        iom::Log::info ("%s from %s - Illegal file name '%s'",
+        iom::log::info ("%s from %s - Illegal file name '%s'",
                         (is_wrq ? "WRQ" : "RRQ"),
                         addr.to_string(true).c_str(),
                         filename.c_str());
@@ -140,14 +140,14 @@ int tftp_session_t::open_file (const iomultiplex::IpAddr& addr)
     //
     struct stat sb;
     if (stat(filename.c_str(), &sb)  ||  !S_ISREG(sb.st_mode)) {
-        iom::Log::info ("%s from %s - Can't open file '%s'",
+        iom::log::info ("%s from %s - Can't open file '%s'",
                         (is_wrq ? "WRQ" : "RRQ"),
                         addr.to_string(true).c_str(),
                         filename.c_str());
         return -1;
     }
     else if (is_wrq && !allow_overwrite) {
-        iom::Log::info ("WRQ from %s - File already exists '%s'",
+        iom::log::info ("WRQ from %s - File already exists '%s'",
                         addr.to_string(true).c_str(),
                         filename.c_str());
         return -1;
@@ -162,7 +162,7 @@ int tftp_session_t::open_file (const iomultiplex::IpAddr& addr)
     else
         fd = open (filename.c_str(), O_RDONLY);
     if (fd < 0) {
-        iom::Log::info ("%s from %s - Can't open file '%s'",
+        iom::log::info ("%s from %s - Can't open file '%s'",
                         (is_wrq ? "WRQ" : "RRQ"),
                         addr.to_string(true).c_str(),
                         filename.c_str());
@@ -218,7 +218,7 @@ void tftp_session_t::handle_opcode_error (tftp_pkt_t& pkt)
     if (ntohs(pkt.opcode) == op_error) {
         // Make sure error message is null-terminated
         pkt.op.err.msg[sizeof(pkt.op.err.msg)-1] = '\0';
-        iom::Log::info ("Session %s, TFTP error received: %d (%s)",
+        iom::log::info ("Session %s, TFTP error received: %d (%s)",
                         sess_id.c_str(), (int)ntohs(pkt.op.err.code), pkt.op.err.msg);
         stop ();
         if (session_done_cb)
@@ -226,7 +226,7 @@ void tftp_session_t::handle_opcode_error (tftp_pkt_t& pkt)
     }
     else {
         // Wrong packet type
-        iom::Log::info ("Session %s, invalid TFTP opcode %d received",
+        iom::log::info ("Session %s, invalid TFTP opcode %d received",
                         sess_id.c_str(), (int)ntohs(pkt.opcode));
         send_error_and_end_session (4, "Illegal TFTP operation");
     }
@@ -245,7 +245,7 @@ void tftp_session_t::send_block ()
 {
     auto bytes = read (fd, &pkt->op.dat.data, block_size);
     if (bytes < 0) {
-        iom::Log::info ("Session %s, file read error: %s",
+        iom::log::info ("Session %s, file read error: %s",
                         sess_id.c_str(), strerror(errno));
         send_error_and_end_session (0, "File read error");
         return;
@@ -280,12 +280,12 @@ void tftp_session_t::handle_ack_error (iomultiplex::io_result_t& ior, size_t byt
         // Timeout waiting for ACK
         if (++retry_count > 10) {
             // Too many resend attempts
-            iom::Log::info ("Session %s, timeout waiting for ACK #%u, stop session",
+            iom::log::info ("Session %s, timeout waiting for ACK #%u, stop session",
                             sess_id.c_str(), block);
             send_error_and_end_session (0, "Transmit error");
         }else{
             // Resend data and continue waiting for ACK
-            iom::Log::debug ("Session %s, timeout waiting for ACK, resend block #%u",
+            iom::log::debug ("Session %s, timeout waiting for ACK, resend block #%u",
                              sess_id.c_str(), block);
             sock.write (pkt, pkt->size()+bytes_in_block, nullptr, 500);
             sock.read (&ack, sizeof(ack), [this, bytes_in_block](iom::io_result_t& ior)->bool{
@@ -298,19 +298,19 @@ void tftp_session_t::handle_ack_error (iomultiplex::io_result_t& ior, size_t byt
     default:
         if (ior.result < 0) {
             // Misc error
-            iom::Log::info ("Session %s, error receiving ACK #%u, stop session. Error: %s",
+            iom::log::info ("Session %s, error receiving ACK #%u, stop session. Error: %s",
                             sess_id.c_str(), block, strerror(ior.errnum));
             send_error_and_end_session (0, "Transmit error");
         }
         else if (ior.result == 0) {
             // Connection terminated by peer
-            iom::Log::info ("Session %s, connection reset by peer", sess_id.c_str());
+            iom::log::info ("Session %s, connection reset by peer", sess_id.c_str());
             stop ();
             if (session_done_cb)
                 session_done_cb (*this);
         }else{
             // Invalid packet size
-            iom::Log::info ("Session %s, invalid TFTP packet received, stop session.",
+            iom::log::info ("Session %s, invalid TFTP packet received, stop session.",
                             sess_id.c_str());
             send_error_and_end_session (4, "Illegal TFTP operation");
         }
@@ -342,7 +342,7 @@ void tftp_session_t::on_ack (iomultiplex::io_result_t& ior, size_t bytes_in_bloc
         //
         if (bytes_in_block < block_size) {
             // All blocks sent
-            iom::Log::debug ("Session %s done", sess_id.c_str());
+            iom::log::debug ("Session %s done", sess_id.c_str());
             stop ();
             if (session_done_cb)
                 session_done_cb (*this);
@@ -355,7 +355,7 @@ void tftp_session_t::on_ack (iomultiplex::io_result_t& ior, size_t bytes_in_bloc
         // Wrong ACK #
         //
         if (++num_wrong_block > 20) {
-            iom::Log::info ("Session %s, error: too many wrong consecutive ACKs",
+            iom::log::info ("Session %s, error: too many wrong consecutive ACKs",
                             sess_id.c_str());
             send_error_and_end_session (0, "ACK error");
         }else{
@@ -414,9 +414,9 @@ void tftp_session_t::on_block (iomultiplex::io_result_t& ior)
     // Verify block number
     //
     if (ntohs(pkt->op.dat.block) != expected_block) {
-        iom::Log::debug ("Session %s, error: wrong data block number", sess_id.c_str());
+        iom::log::debug ("Session %s, error: wrong data block number", sess_id.c_str());
         if (++num_wrong_block > 20) {
-            iom::Log::info ("Session %s, error: too many wrong consecutive wrong block numbers",
+            iom::log::info ("Session %s, error: too many wrong consecutive wrong block numbers",
                             sess_id.c_str());
             send_error_and_end_session (0, "DATA error");
         }else{
@@ -449,14 +449,14 @@ void tftp_session_t::handle_new_block (iomultiplex::io_result_t& ior)
     if (max_write_size &&
         (total_write_size + bytes) > max_write_size)
     {
-        iom::Log::info ("Session %s, max file size exceeded", sess_id.c_str());
+        iom::log::info ("Session %s, max file size exceeded", sess_id.c_str());
         send_error_and_end_session (3, "Disk full or allocation exceeded");
         return;
     }
 
     // Write to file
     if (bytes  &&  write(fd, pkt->op.dat.data, bytes) != (ssize_t)bytes) {
-        iom::Log::info ("Session %s, file write error: %s",
+        iom::log::info ("Session %s, file write error: %s",
                         sess_id.c_str(), strerror(errno));
         send_error_and_end_session (0, "File write error");
         return;
@@ -470,7 +470,7 @@ void tftp_session_t::handle_new_block (iomultiplex::io_result_t& ior)
         ack.op.ack.block = htons (block);
         sock.write (&ack, tftp_min_packet_size, [this](iom::io_result_t& ior)->bool{
             // End the session after the last ACK is sent (ignore send error)
-            iom::Log::debug ("Session %s done", sess_id.c_str());
+            iom::log::debug ("Session %s done", sess_id.c_str());
             stop ();
             if (session_done_cb)
                 session_done_cb (*this);
@@ -499,12 +499,12 @@ void tftp_session_t::handle_block_error (iomultiplex::io_result_t& ior,
         // Timeout waiting for data
         if (++retry_count > 10) {
             // Too many resend attempts
-            iom::Log::info ("Session %s, timeout waiting for block #%u, stop session",
+            iom::log::info ("Session %s, timeout waiting for block #%u, stop session",
                             sess_id.c_str(), expected_block);
             send_error_and_end_session (0, "Receive error");
         }else{
             // Resend ACK and continue waiting for data
-            iom::Log::debug ("Session %s, timeout waiting for data, resend ACK #%u",
+            iom::log::debug ("Session %s, timeout waiting for data, resend ACK #%u",
                              sess_id.c_str(), block);
             sock.write (&ack, tftp_min_packet_size, nullptr, 500);
             sock.read (pkt, tftp_min_packet_size+block_size, [this](iom::io_result_t& ior)->bool{
@@ -517,19 +517,19 @@ void tftp_session_t::handle_block_error (iomultiplex::io_result_t& ior,
     default:
         if (ior.result < 0) {
             // Misc error
-            iom::Log::info ("Session %s, error receiving block #%u, stop session. Error: %s",
+            iom::log::info ("Session %s, error receiving block #%u, stop session. Error: %s",
                             sess_id.c_str(), expected_block, strerror(ior.errnum));
             send_error_and_end_session (0, "Transmit error");
         }
         else if (ior.result == 0) {
             // Connection terminated by peer
-            iom::Log::info ("Session %s, connection reset by peer", sess_id.c_str());
+            iom::log::info ("Session %s, connection reset by peer", sess_id.c_str());
             stop ();
             if (session_done_cb)
                 session_done_cb (*this);
         }else{
             // Invalid packet size
-            iom::Log::info ("Session %s, invalid TFTP packet received, stop session.",
+            iom::log::info ("Session %s, invalid TFTP packet received, stop session.",
                             sess_id.c_str());
             send_error_and_end_session (4, "Illegal TFTP operation");
         }

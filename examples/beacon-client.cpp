@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021,2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2021,2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -30,7 +30,7 @@ namespace iom = iomultiplex;
 int main (int argc, char* argv[])
 {
     iom::default_iohandler ioh;
-    iom::SocketConnection s (ioh);
+    iom::socket_connection s (ioh);
 
     ioh.run (true);
 
@@ -38,7 +38,7 @@ int main (int argc, char* argv[])
         perror ("s.open");
         return 1;
     }
-    if (s.connect(iom::IpAddr(127,0,0,1, 12000), 1000)) {
+    if (s.connect(iom::ip_addr(127,0,0,1, 12000), 1000)) {
         perror ("s.connect");
         return 1;
     }

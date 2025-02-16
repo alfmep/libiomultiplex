@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022,2023 Dan Arrhenius <dan@ultramarin.se>
+ * Copyright (C) 2022,2023,2025 Dan Arrhenius <dan@ultramarin.se>
  *
  * This file is part of libiomultiplex
  *
@@ -48,7 +48,7 @@ int main (int argc, char* argv[])
 
     // Open a file
     //
-    iom::FileConnection f (ioh);
+    iom::file_connection f (ioh);
     if (f.open(argv[1], O_RDONLY)) {
         perror ("open");
         return 1;
