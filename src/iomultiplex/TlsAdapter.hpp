@@ -433,7 +433,11 @@ namespace iomultiplex {
 
 
         /**
-         *
+         * Perform a TLS shutdown.
+         * @param callback Callback to be called when the TLS shutdown is finished.
+         * @param timeout A timeout in milliseconds. If -1, no timeout is set.
+         * @return 0 if the TLS shutdown is successfully started.
+         *         -1 on error and <code>errno</code> is set.
          */
         int shutdown (tls_handshake_cb_t callback, unsigned timeout=-1);
 
