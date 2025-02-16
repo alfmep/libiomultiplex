@@ -27,7 +27,8 @@
 //#define TRACE_DEBUG
 
 #ifdef TRACE_DEBUG
-#define TRACE(format, ...) Log::debug("%s:%s:%d: " format, __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__)
+#define THIS_FILE "FdConnection.cpp"
+#define TRACE(format, ...) Log::debug("%s:%s:%d: " format, THIS_FILE, __FUNCTION__, __LINE__, ## __VA_ARGS__)
 #else
 #define TRACE(format, ...)
 #endif
